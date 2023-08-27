@@ -1,5 +1,8 @@
 import { type Driver } from "neo4j-driver";
 import { createDriver } from "./driver";
+import { type Neo4jConfig } from "~/types";
+
+export interface DataSourceOptions extends Neo4jConfig {}
 
 /**
  * DataSource is a pre-defined connection configuration to a specific database.
@@ -87,7 +90,7 @@ export class DataSource {
 	 * Once connection is closed, you cannot use repositories or perform any operations except opening connection again.
 	 */
 	async destroy(): Promise<void> {
-		// TODO:
+		await this.driver.close();
 		this.isInitialized = false;
 	}
 

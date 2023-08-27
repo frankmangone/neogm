@@ -1,4 +1,4 @@
-type Neo4jScheme =
+export type Neo4jScheme =
 	| "neo4j"
 	| "neo4j+s"
 	| "neo4j+scc"
@@ -6,7 +6,7 @@ type Neo4jScheme =
 	| "bolt+s"
 	| "bolt+scc";
 
-interface Neo4jConfig {
+export interface Neo4jConfig {
 	scheme: Neo4jScheme;
 	host: string;
 	port: number | string;

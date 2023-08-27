@@ -1,4 +1,5 @@
 import neo4j, { type Driver } from "neo4j-driver";
+import { type Neo4jConfig } from "~/types";
 
 export const createDriver = (config: Neo4jConfig): Driver => {
 	// Create a Driver instance
