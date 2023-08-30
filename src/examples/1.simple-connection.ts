@@ -1,6 +1,7 @@
 import { DataSource, type DataSourceOptions } from "~/data-source/data-source";
-import { Node } from "~/decorators/node/node";
-import { store } from "~/tools/store";
+import { Node } from "~/decorators/node";
+import { Property } from "~/decorators/property";
+import { store } from "~/utils/store";
 
 const options = {
 	scheme: "neo4j",
@@ -12,11 +13,17 @@ const options = {
 } as DataSourceOptions;
 
 @Node()
-class Test {}
+class Test {
+	@Property()
+	prop: string;
+
+	@Property()
+	prop2: number;
+}
 
 (async () => {
 	const dataSource = new DataSource(options);
 	await dataSource.initialize();
-	console.log(store);
+	console.log(JSON.stringify(store));
 	await dataSource.destroy();
 })();

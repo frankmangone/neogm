@@ -1,0 +1,1 @@
+export const ANNOTATED_PROPS = "ANNOTATED_PROPS";

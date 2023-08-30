@@ -3,7 +3,8 @@
 // import { TableMetadataArgs } from "../../metadata-args/TableMetadataArgs"
 // import { EntityOptions } from "../options/EntityOptions"
 // import { ObjectUtils } from "../../util/ObjectUtils"
-import { store } from "~/tools/store";
+import { ANNOTATED_PROPS } from "~/utils/constants";
+import { store } from "~/utils/store";
 
 interface NodeOptions {
 	name: string;
@@ -14,11 +15,11 @@ interface NodeOptions {
  * Database schema will be created for all classes decorated with it, and Repository can be retrieved and used for it.
  */
 export function Node(): ClassDecorator {
-	return function (target) {
-		console.log(target);
+	return function (class_) {
+		const props = Reflect.getMetadata(ANNOTATED_PROPS, class_.prototype);
 
 		store.addNode({
-			fields: [],
+			fields: props,
 		});
 	};
 
