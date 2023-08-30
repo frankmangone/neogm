@@ -1,12 +1,7 @@
-// import { type ClassDecorator } from "typescript";
-// import { getMetadataArgsStorage } from "../../globals"
-// import { TableMetadataArgs } from "../../metadata-args/TableMetadataArgs"
-// import { EntityOptions } from "../options/EntityOptions"
-// import { ObjectUtils } from "../../util/ObjectUtils"
+import { type PropertyData, store } from "~/utils/store";
 import { ANNOTATED_PROPS } from "~/utils/constants";
-import { store } from "~/utils/store";
 
-interface NodeOptions {
+export interface NodeData {
 	name: string;
 }
 
@@ -16,7 +11,10 @@ interface NodeOptions {
  */
 export function Node(): ClassDecorator {
 	return function (class_) {
-		const props = Reflect.getMetadata(ANNOTATED_PROPS, class_.prototype);
+		const props: PropertyData[] = Reflect.getMetadata(
+			ANNOTATED_PROPS,
+			class_.prototype
+		);
 
 		store.addNode({
 			fields: props,

@@ -1,12 +1,13 @@
-interface NodeField {
-	name: string;
-	type: string;
+export interface PropertyData {
+	propertyName: string;
+	type: "number" | "string" | "boolean" | object;
+	customName?: string;
 	required?: boolean;
 	array?: boolean;
 }
 
 export interface NodeData {
-	fields: NodeField[];
+	fields: PropertyData[];
 }
 
 class Store {

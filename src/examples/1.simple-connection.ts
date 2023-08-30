@@ -12,13 +12,12 @@ const options = {
 	database: "neo4j",
 } as DataSourceOptions;
 
+class A {}
+
 @Node()
 class Test {
-	@Property()
-	prop: string;
-
-	@Property()
-	prop2: number;
+	@Property({ type: "string" })
+	prop: string[];
 }
 
 (async () => {
