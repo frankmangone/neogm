@@ -17,23 +17,24 @@ const options = {
 class A {}
 
 @Node()
-class Test {
-	@Property({ type: "string" })
-	prop: string[];
+class TestNode {
+	@Property()
+	prop: string;
 }
 
 (async () => {
 	const dataSource = new DataSource(options);
 	await dataSource.initialize();
-	// console.log(JSON.stringify(store));
-
-	const cypher = new MatchBuilder({ tag: "a" }).return(["a"]).cypher;
-
-	const result = await dataSource.read(cypher);
-	console.log(result);
 
 	const nodeManager = new NodeManager(dataSource);
-	nodeManager.save({ test: "test" }, { nodeName: "TestNode" });
+	await nodeManager.save({ prop: "test" }, { node: TestNode });
+	await nodeManager.save({ prop: "test2" }, { node: TestNode });
+	await nodeManager.save({ prop: "test3" }, { node: TestNode });
+
+	const result = await nodeManager.find({ node: TestNode });
+	console.log(result.records.map((record) => record.get("r").properties));
+
+	await dataSource.write(`MATCH (a:${TestNode.name}) DELETE a;`);
 
 	await dataSource.destroy();
 })();

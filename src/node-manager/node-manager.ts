@@ -1,7 +1,9 @@
 import { CreateBuilder } from "~/builders/create.builder";
 import { MatchBuilder } from "~/builders/match.builder";
 import { DataSource } from "~/data-source/data-source";
-import { DeepPartial, ObjectLiteral } from "~/types";
+import { Node, DeepPartial, ObjectLiteral } from "~/types";
+import type { FindManyOptions, SaveOptions } from "./interfaces";
+import { QueryResult, RecordShape } from "neo4j-driver";
 
 /**
  * NodeManager
@@ -28,21 +30,45 @@ export class NodeManager {
 	 */
 	async save<Entity extends ObjectLiteral, T extends DeepPartial<Entity>>(
 		data: T, // | T[],
-		options?: any
+		options: SaveOptions<T>
 	): Promise<any> {
 		// Promise<T | T[]> {
-		const { entity, nodeName } = options;
+		const { node } = options;
 
 		// TODO: Validate schema
 
-		// TODO: Perfect create builder
+		// TODO: Perfect the create builder
 		const cypher = new CreateBuilder({
 			tag: "r",
-			label: nodeName,
+			label: node.name,
 			fields: data,
 		}).return(["r"]).cypher;
 
-		const result = await this.#dataSource.write(cypher, data);
-		return result;
+		return this.#dataSource.write(cypher, data);
+	}
+
+	/**
+	 * Finds entities that match given find options.
+	 */
+	async find<Entity extends ObjectLiteral>(
+		options: FindManyOptions<Entity>
+	): Promise<QueryResult<RecordShape<string>>> {
+		const { node, query: fields } = options;
+
+		const cypher = new MatchBuilder({
+			tag: "r",
+			label: node.name,
+			fields,
+		}).return(["r"]).cypher;
+
+		return this.#dataSource.read(cypher, fields);
+
+		// const metadata = this.#dataSource.getMetadata(entityClass);
+		// return this.createQueryBuilder<Entity>(
+		// 	entityClass as any,
+		// 	FindOptionsUtils.extractFindManyOptionsAlias(options) || metadata.name
+		// )
+		// 	.setFindOptions(options || {})
+		// 	.getMany();
 	}
 }

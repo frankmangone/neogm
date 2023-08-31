@@ -15,3 +15,6 @@ export type DeepPartial<T> =
 			: T);
 
 export type ObjectLiteral = Record<string, any>;
+
+export type ClassConstructor<T = any> = new (...args: any[]) => T;
+export type Node<T = any> = ClassConstructor<T>;

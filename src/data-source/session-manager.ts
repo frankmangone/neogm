@@ -9,12 +9,12 @@ export class SessionManager {
 		this.#database = database;
 	}
 
-	read(cypher: string, params: Record<string, any>): Result {
+	async read(cypher: string, params: Record<string, any>): Promise<Result> {
 		const session = this.#getReadSession();
 		return session.run(cypher, params);
 	}
 
-	write(cypher: string, params: Record<string, any>): Result {
+	async write(cypher: string, params: Record<string, any>): Promise<Result> {
 		const session = this.#getWriteSession();
 		return session.run(cypher, params);
 	}
