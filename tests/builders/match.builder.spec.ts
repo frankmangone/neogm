@@ -2,8 +2,8 @@
 // import { OperationBuilder } from './operation.builder';
 // import { Decimal } from 'decimal.js';
 // import { UnprocessableEntityException } from '@nestjs/common';
-
-import { DIRECTIONS, MatchBuilder } from "~/builders/match.builder";
+import { DIRECTIONS } from "~/builders/connection.builder";
+import { MatchBuilder } from "~/builders/match.builder";
 
 // const MOCK_FOUND_ID = 1;
 
@@ -41,7 +41,7 @@ describe("MatchBuilder", () => {
 	let builder: MatchBuilder;
 
 	beforeEach(() => {
-		// builder = new MatchBuilder();
+		builder = new MatchBuilder();
 	});
 
 	describe("Method: constructor", () => {
