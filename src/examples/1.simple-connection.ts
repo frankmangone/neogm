@@ -1,3 +1,4 @@
+import { MatchBuilder } from "~/builders/match.builder";
 import { DataSource, type DataSourceOptions } from "~/data-source/data-source";
 import { Node } from "~/decorators/node";
 import { Property } from "~/decorators/property";
@@ -23,9 +24,11 @@ class Test {
 (async () => {
 	const dataSource = new DataSource(options);
 	await dataSource.initialize();
-
 	// console.log(JSON.stringify(store));
-	const result = await dataSource.read("MATCH (a) RETURN a;");
+
+	const cypher = new MatchBuilder({ tag: "a" }).return(["a"]).cypher;
+
+	const result = await dataSource.read(cypher);
 	console.log(result);
 
 	await dataSource.destroy();
