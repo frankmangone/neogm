@@ -2,6 +2,7 @@ import { MatchBuilder } from "~/builders/match.builder";
 import { DataSource, type DataSourceOptions } from "~/data-source/data-source";
 import { Node } from "~/decorators/node";
 import { Property } from "~/decorators/property";
+import { NodeManager } from "~/node-manager/node-manager";
 import { store } from "~/utils/store";
 
 const options = {
@@ -30,6 +31,9 @@ class Test {
 
 	const result = await dataSource.read(cypher);
 	console.log(result);
+
+	const nodeManager = new NodeManager(dataSource);
+	nodeManager.save({ test: "test" }, { nodeName: "TestNode" });
 
 	await dataSource.destroy();
 })();
