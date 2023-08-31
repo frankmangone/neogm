@@ -2,7 +2,7 @@
 // import { OperationBuilder } from './operation.builder';
 // import { Decimal } from 'decimal.js';
 // import { UnprocessableEntityException } from '@nestjs/common';
-import { DIRECTIONS } from "~/builders/connection.builder";
+import { DIRECTIONS } from "~/builders/connection/interfaces";
 import { MatchBuilder } from "~/builders/match.builder";
 
 // const MOCK_FOUND_ID = 1;

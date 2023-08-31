@@ -1,30 +1,11 @@
-import { Query } from "../types";
-
-export const DIRECTIONS = {
-	INCOMING: "incoming",
-	OUTGOING: "outgoing",
-} as const;
-
-export type Direction = (typeof DIRECTIONS)[keyof typeof DIRECTIONS];
-
-export interface NodeParams {
-	tag?: string;
-	label?: string;
-	fields?: Record<string, unknown>;
-}
-
-interface EdgeParams {
-	direction?: Direction;
-	tag?: string;
-	label?: string;
-	fields?: Record<string, unknown>;
-}
-
-interface AddConnectionParams {
-	sourceNode?: NodeParams;
-	edge?: EdgeParams;
-	targetNode?: NodeParams;
-}
+import type { Query } from "../../types";
+import {
+	DIRECTIONS,
+	type AddConnectionParams,
+	type Direction,
+	type EdgeParams,
+	type NodeParams,
+} from "./interfaces";
 
 export class ConnectionBuilder {
 	protected _cypher: string;

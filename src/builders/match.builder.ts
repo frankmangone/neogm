@@ -1,4 +1,5 @@
-import { ConnectionBuilder, type NodeParams } from "./connection.builder";
+import { ConnectionBuilder } from "./connection/connection.builder";
+import type { NodeParams } from "./connection/interfaces";
 
 export class MatchBuilder extends ConnectionBuilder {
 	protected _cypher: string;
