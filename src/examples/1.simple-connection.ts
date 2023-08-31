@@ -23,6 +23,10 @@ class Test {
 (async () => {
 	const dataSource = new DataSource(options);
 	await dataSource.initialize();
-	console.log(JSON.stringify(store));
+
+	// console.log(JSON.stringify(store));
+	const result = await dataSource.read("MATCH (a) RETURN a;");
+	console.log(result);
+
 	await dataSource.destroy();
 })();

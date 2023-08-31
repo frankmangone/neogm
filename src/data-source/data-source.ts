@@ -1,8 +1,14 @@
-import { type Driver } from "neo4j-driver";
+import { QueryResult, type Driver } from "neo4j-driver";
 import { createDriver } from "./driver";
 import { type Neo4jConfig } from "~/types";
+import { SessionManager } from "./session-manager";
 
 export interface DataSourceOptions extends Neo4jConfig {}
+
+export enum Session {
+	READ,
+	WRITE,
+}
 
 /**
  * DataSource is a pre-defined connection configuration to a specific database.
@@ -29,7 +35,7 @@ export class DataSource {
 	/**
 	 * Database driver used by this connection.
 	 */
-	driver: Driver;
+	readonly driver: Driver;
 
 	/**
 	 * TODO: Connection options.
@@ -37,14 +43,15 @@ export class DataSource {
 	// readonly options: DataSourceOptions;
 
 	/**
-	 * TODO: EntityManager of this connection.
+	 * Session manager for read and write operations.
 	 */
-	//readonly manager: EntityManager;
+	readonly sessionManager: SessionManager;
 
 	constructor(options: DataSourceOptions) {
 		this.options = options;
 		this.isInitialized = false;
 		this.driver = createDriver(options);
+		this.sessionManager = new SessionManager(this.driver, options.database);
 
 		// this.logger = new LoggerFactory().create(
 		// 	this.options.logger,
@@ -95,33 +102,53 @@ export class DataSource {
 	}
 
 	/**
+	 * query
+	 *
 	 * Executes raw cypher query and returns raw database results.
+	 *
+	 * @param {string} cypher - The cypher expression.
+	 * @param {Record<string, any>} parameters? - The parameters required for the cypher.
+	 * @param {Session} session? - Either READ or WRITE session.
+	 * @returns {Promise<QueryResult<T>>}
 	 */
 	async query<T = any>(
-		query: string,
-		parameters?: any[]
-		// queryRunner?: QueryRunner
-	): Promise<T> {
-		return;
-		// TODO:
-		// if (InstanceChecker.isMongoEntityManager(this.manager))
-		// 	throw new TypeORMError(`Queries aren't supported by MongoDB.`);
-		// if (queryRunner && queryRunner.isReleased)
-		// 	throw new QueryRunnerProviderAlreadyReleasedError();
-		// const usedQueryRunner = queryRunner || this.createQueryRunner();
-		// try {
-		// 	return await usedQueryRunner.query(query, parameters); // await is needed here because we are using finally
-		// } finally {
-		// 	if (!queryRunner) await usedQueryRunner.release();
-		// }
+		cypher: string,
+		parameters?: Record<string, any>,
+		session: Session = Session.READ
+	): Promise<QueryResult<T>> {
+		if (session === Session.READ) return this.read(cypher, parameters);
+		return this.write(cypher, parameters);
 	}
 
 	/**
-	 * TODO: Gets repository for the given entity.
+	 * read
+	 *
+	 * Executes raw read query and returns raw database results.
+	 *
+	 * @param {string} cypher - The cypher expression.
+	 * @param {Record<string, any>} parameters? - The parameters required for the cypher.
+	 * @returns {Promise<QueryResult<T>>}
 	 */
-	// getRepository<Entity extends ObjectLiteral>(
-	// 	target: EntityTarget<Entity>
-	// ): Repository<Entity> {
-	// 	return this.manager.getRepository(target);
-	// }
+	async read<T = any>(
+		cypher: string,
+		parameters?: Record<string, any>
+	): Promise<QueryResult<T>> {
+		return this.sessionManager.read(cypher, parameters);
+	}
+
+	/**
+	 * write
+	 *
+	 * Executes raw write query and returns raw database results.
+	 *
+	 * @param {string} cypher - The cypher expression.
+	 * @param {Record<string, any>} parameters? - The parameters required for the cypher.
+	 * @returns {Promise<QueryResult<T>>}
+	 */
+	async write<T = any>(
+		cypher: string,
+		parameters?: Record<string, any>
+	): Promise<QueryResult<T>> {
+		return this.sessionManager.write(cypher, parameters);
+	}
 }

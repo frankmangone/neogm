@@ -12,5 +12,5 @@ export interface Neo4jConfig {
 	port: number | string;
 	username: string;
 	password: string;
-	database?: string;
+	database: string;
 }
