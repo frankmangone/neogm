@@ -7,6 +7,7 @@ import {
 	OPERATORS,
 	stringOnlyOperators,
 	type WhereParams,
+	type RawWhereParams,
 } from "./interfaces";
 
 /**
@@ -16,6 +17,7 @@ import {
  */
 export class WhereBuilder {
 	private _cypher: string = "";
+	private _params: Record<string, unknown> = {};
 
 	// ----------------------------------------------------------------
 	// Public Methods
@@ -27,11 +29,15 @@ export class WhereBuilder {
 	 * Adds a clause to a WHERE statement.
 	 * For complex queries, you can pass a raw cypher string.
 	 *
-	 * @param {string | WhereParams | WhereBuilder} params
+	 * @param {string | RawWhereParams | WhereParams | WhereBuilder} args
 	 * @returns {this}
 	 */
-	public where(params: string | WhereParams | WhereBuilder): this {
-		const expression = this._parseExpression(params);
+	public where(
+		args: string | RawWhereParams | WhereParams | WhereBuilder
+	): this {
+		const { expression, params } = this._parseExpression(args);
+
+		Object.assign(this._params, params);
 
 		if (this._cypher.length !== 0) {
 			throw new Error(
@@ -50,10 +56,12 @@ export class WhereBuilder {
 	 * Adds a clause to a WHERE statement with an AND logical operator.
 	 * For complex queries, pass a raw cypher string.
 	 *
-	 * @param {string | WhereParams | WhereBuilder} params
+	 * @param {string | RawWhereParams | WhereParams | WhereBuilder} params
 	 * @returns {this}
 	 */
-	public and(params: string | WhereParams | WhereBuilder): this {
+	public and(
+		params: string | RawWhereParams | WhereParams | WhereBuilder
+	): this {
 		return this._appendLogicalCondition(params, LOGICAL_OPERATORS.AND);
 	}
 
@@ -63,10 +71,12 @@ export class WhereBuilder {
 	 * Adds a clause to a WHERE statement with an OR logical operator.
 	 * For complex queries, pass a raw cypher string.
 	 *
-	 * @param {string | WhereParams | WhereBuilder}
+	 * @param {string | RawWhereParams | WhereParams | WhereBuilder}
 	 * @returns {this}
 	 */
-	public or(params: string | WhereParams | WhereBuilder): this {
+	public or(
+		params: string | RawWhereParams | WhereParams | WhereBuilder
+	): this {
 		return this._appendLogicalCondition(params, LOGICAL_OPERATORS.OR);
 	}
 
@@ -76,10 +86,12 @@ export class WhereBuilder {
 	 * Adds a clause to a WHERE statement with an XOR logical operator.
 	 * For complex queries, pass a raw cypher string.
 	 *
-	 * @param {string | WhereParams | WhereBuilder}
+	 * @param {string | RawWhereParams | WhereParams | WhereBuilder}
 	 * @returns {this}
 	 */
-	public xor(params: string | WhereParams | WhereBuilder): this {
+	public xor(
+		params: string | RawWhereParams | WhereParams | WhereBuilder
+	): this {
 		return this._appendLogicalCondition(params, LOGICAL_OPERATORS.XOR);
 	}
 
@@ -92,6 +104,17 @@ export class WhereBuilder {
 	 */
 	public get cypher(): string {
 		return this._cypher;
+	}
+
+	/**
+	 * params
+	 *
+	 * Getter for the inner `_params` property.
+	 *
+	 * @returns {string}
+	 */
+	public get params(): Record<string, unknown> {
+		return this._params;
 	}
 
 	/**
@@ -113,19 +136,22 @@ export class WhereBuilder {
 	/**
 	 * _appendLogicalCondition
 	 *
-	 * @param {string | WhereParams | WhereBuilder} params
+	 * @param {string | RawWhereParams | WhereParams | WhereBuilder} params
 	 * @param {LogicalOperator} operator
 	 * @returns {this}
 	 */
 	private _appendLogicalCondition(
-		params: string | WhereParams | WhereBuilder,
+		args: string | RawWhereParams | WhereParams | WhereBuilder,
 		operator: LogicalOperator
 	): this {
 		if (this._cypher.length === 0) {
 			throw new Error(`${operator} must be used after a \`where\` call.`);
 		}
 
-		const expression = this._parseExpression(params);
+		const { expression, params } = this._parseExpression(args);
+
+		Object.assign(this._params, params);
+
 		this._cypher = `${this._cypher} ${operator} ${expression}`;
 		return this;
 	}
@@ -135,30 +161,44 @@ export class WhereBuilder {
 	 *
 	 * Parses params as an expression to be added to the WHERE clause.
 	 *
-	 * @param {string | WhereParams | WhereBuilder} params
+	 * @param {string | RawWhereParams | WhereParams | WhereBuilder} args
 	 * @returns {string}
 	 */
 	private _parseExpression(
-		params: string | WhereParams | WhereBuilder
-	): string {
-		if (typeof params === "string") {
-			// TODO: string validation to avoid injection
-			return params;
+		args: string | RawWhereParams | WhereParams | WhereBuilder
+	): {
+		expression: string;
+		params: Record<string, unknown>;
+	} {
+		if (typeof args === "string") {
+			// TODO: Add validation logic here for trusted sources
+			// If not a trusted source, throw an error
+			// throw new Error("Untrusted Cypher string");
+			return { expression: args, params: {} };
 		}
 
-		if (params instanceof WhereBuilder) {
-			return `(${params.cypher})`;
+		if (args instanceof WhereBuilder) {
+			return { expression: `(${args.cypher})`, params: args.params };
 		}
 
-		const { not = false, field, operator, value: rawValue } = params;
+		// RawWhereParams
+		if ("expression" in args) {
+			return { expression: args.expression, params: args.params };
+		}
+
+		const { not = false, field, operator, value: rawValue } = args;
 
 		this._validateOperator(operator, rawValue);
 		const value = this._parseExpressionValue(rawValue);
 
 		const expression = value
-			? `${field} ${operator} ${value}`
+			? `${field} ${operator} $${field}`
 			: `${field} ${operator}`;
-		return not ? `NOT ${expression}` : expression;
+
+		return {
+			expression: not ? `NOT ${expression}` : expression,
+			params: { [field]: value },
+		};
 	}
 
 	/**
@@ -228,23 +268,29 @@ export class WhereBuilder {
 	 * Takes the value of an expression, and parses it accordingly.
 	 *
 	 * @param {unknown} value
-	 * @returns {string | undefined}
+	 * @returns {any}
 	 */
-	private _parseExpressionValue(value: unknown): string | undefined {
+	private _parseExpressionValue(value: unknown): any {
 		if (typeof value === "undefined") return;
-		if (typeof value === "number" || typeof value === "boolean")
-			return String(value);
-		if (typeof value === "string") return `\"${value}\"`;
+		if (
+			typeof value === "number" ||
+			typeof value === "boolean" ||
+			typeof value === "string"
+		)
+			return value;
+
 		if (!Array.isArray(value))
 			throw new Error(`Invalid value provided (provided ${value}).`);
 
-		const parsedArray = value.flat(Infinity).map((value) => {
-			if (typeof value === "number" || typeof value === "boolean")
-				return String(value);
-			if (typeof value === "string") return `\"${value}\"`;
-			throw new Error(`Invalid value provided (provided ${value}).`);
+		return value.flat(Infinity).map((item) => {
+			if (
+				typeof item !== "number" &&
+				typeof item !== "boolean" &&
+				typeof item !== "string"
+			) {
+				throw new Error(`Invalid value provided (provided ${item}).`);
+			}
+			return item;
 		});
-
-		return `[${parsedArray.join(", ")}]`;
 	}
 }

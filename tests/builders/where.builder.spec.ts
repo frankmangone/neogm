@@ -13,13 +13,25 @@ describe("WhereBuilder", () => {
 			expect(whereBuilder.cypher).toBe('name = "John"');
 		});
 
+		it("should set basic where condition with raw expression and params", () => {
+			whereBuilder.where({
+				expression: "age = $age",
+				params: { age: 25 },
+			});
+
+			expect(whereBuilder.cypher).toBe("age = $age");
+			expect(whereBuilder.params).toEqual({ age: 25 });
+		});
+
 		it("should set basic where condition with params", () => {
 			whereBuilder.where({
 				field: "age",
 				operator: OPERATORS.EQUALS,
 				value: 25,
 			});
-			expect(whereBuilder.cypher).toBe("age = 25");
+
+			expect(whereBuilder.cypher).toBe("age = $age");
+			expect(whereBuilder.params).toEqual({ age: 25 });
 		});
 
 		it("should handle NOT condition", () => {
@@ -29,7 +41,9 @@ describe("WhereBuilder", () => {
 				operator: OPERATORS.EQUALS,
 				value: 25,
 			});
-			expect(whereBuilder.cypher).toBe("NOT age = 25");
+
+			expect(whereBuilder.cypher).toBe("NOT age = $age");
+			expect(whereBuilder.params).toEqual({ age: 25 });
 		});
 
 		it("should add a where clause with a string value", () => {
@@ -38,7 +52,8 @@ describe("WhereBuilder", () => {
 				operator: OPERATORS.EQUALS,
 				value: "John",
 			});
-			expect(whereBuilder.cypher).toBe('name = "John"');
+			expect(whereBuilder.cypher).toBe("name = $name");
+			expect(whereBuilder.params).toEqual({ name: "John" });
 		});
 
 		it("should accept null check operators", () => {
@@ -56,58 +71,68 @@ describe("WhereBuilder", () => {
 			const data = { field: "age", value: 25 };
 
 			whereBuilder.where({ ...data, operator: OPERATORS.GREATER_THAN });
-			expect(whereBuilder.cypher).toBe("age > 25");
+			expect(whereBuilder.cypher).toBe("age > $age");
+			expect(whereBuilder.params).toEqual({ age: 25 });
 
 			whereBuilder = new WhereBuilder();
 			whereBuilder.where({ ...data, operator: OPERATORS.LOWER_THAN });
-			expect(whereBuilder.cypher).toBe("age < 25");
+			expect(whereBuilder.cypher).toBe("age < $age");
+			expect(whereBuilder.params).toEqual({ age: 25 });
 
 			whereBuilder = new WhereBuilder();
 			whereBuilder.where({
 				...data,
 				operator: OPERATORS.GREATER_OR_EQUAL_THAN,
 			});
-			expect(whereBuilder.cypher).toBe("age >= 25");
+			expect(whereBuilder.cypher).toBe("age >= $age");
+			expect(whereBuilder.params).toEqual({ age: 25 });
 
 			whereBuilder = new WhereBuilder();
 			whereBuilder.where({
 				...data,
 				operator: OPERATORS.LOWER_OR_EQUAL_THAN,
 			});
-			expect(whereBuilder.cypher).toBe("age <= 25");
+			expect(whereBuilder.cypher).toBe("age <= $age");
+			expect(whereBuilder.params).toEqual({ age: 25 });
 		});
 
 		it("should accept string operators", () => {
 			const stringData = { field: "color", value: "blu" };
 
 			whereBuilder.where({ ...stringData, operator: OPERATORS.EQUALS });
-			expect(whereBuilder.cypher).toBe('color = "blu"');
+			expect(whereBuilder.cypher).toBe("color = $color");
+			expect(whereBuilder.params).toEqual({ color: "blu" });
 
 			whereBuilder = new WhereBuilder();
 			whereBuilder.where({ ...stringData, operator: OPERATORS.STARTS_WITH });
-			expect(whereBuilder.cypher).toBe('color STARTS WITH "blu"');
+			expect(whereBuilder.cypher).toBe("color STARTS WITH $color");
+			expect(whereBuilder.params).toEqual({ color: "blu" });
 
 			whereBuilder = new WhereBuilder();
 			whereBuilder.where({ ...stringData, operator: OPERATORS.ENDS_WITH });
-			expect(whereBuilder.cypher).toBe('color ENDS WITH "blu"');
+			expect(whereBuilder.cypher).toBe("color ENDS WITH $color");
+			expect(whereBuilder.params).toEqual({ color: "blu" });
 
 			whereBuilder = new WhereBuilder();
 			whereBuilder.where({ ...stringData, operator: OPERATORS.CONTAINS });
-			expect(whereBuilder.cypher).toBe('color CONTAINS "blu"');
+			expect(whereBuilder.cypher).toBe("color CONTAINS $color");
+			expect(whereBuilder.params).toEqual({ color: "blu" });
 
 			whereBuilder = new WhereBuilder();
 			whereBuilder.where({ ...stringData, operator: OPERATORS.MATCH });
-			expect(whereBuilder.cypher).toBe('color =~ "blu"');
+			expect(whereBuilder.cypher).toBe("color =~ $color");
+			expect(whereBuilder.params).toEqual({ color: "blu" });
 		});
 
 		it("should accept the IN operator", () => {
-			const inData = { field: "bytes", value: [1, 2, 4, 8] };
+			const inData = { field: "bytes", value: [1, 2, 4, "none"] };
 
 			whereBuilder.where({
 				...inData,
 				operator: OPERATORS.IN,
 			});
-			expect(whereBuilder.cypher).toBe("bytes IN [1, 2, 4, 8]");
+			expect(whereBuilder.cypher).toBe("bytes IN $bytes");
+			expect(whereBuilder.params).toEqual({ bytes: [1, 2, 4, "none"] });
 		});
 
 		it("should throw if null check operators are passed a value", () => {
@@ -223,8 +248,9 @@ describe("WhereBuilder", () => {
 				})
 				.and(new WhereBuilder().where("age < 25").or("age > 40"));
 			expect(whereBuilder.cypher).toBe(
-				'gender = "male" AND (age < 25 OR age > 40)'
+				"gender = $gender AND (age < 25 OR age > 40)"
 			);
+			expect(whereBuilder.params).toEqual({ gender: "male" });
 
 			whereBuilder = new WhereBuilder();
 			whereBuilder
@@ -235,8 +261,9 @@ describe("WhereBuilder", () => {
 					value: "male",
 				});
 			expect(whereBuilder.cypher).toBe(
-				'(age < 25 OR age > 40) AND gender = "male"'
+				"(age < 25 OR age > 40) AND gender = $gender"
 			);
+			expect(whereBuilder.params).toEqual({ gender: "male" });
 		});
 
 		it("should throw an error if called before where()", () => {
@@ -261,8 +288,9 @@ describe("WhereBuilder", () => {
 				})
 				.or(new WhereBuilder().where("age > 25").and("age < 40"));
 			expect(whereBuilder.cypher).toBe(
-				'gender = "male" OR (age > 25 AND age < 40)'
+				"gender = $gender OR (age > 25 AND age < 40)"
 			);
+			expect(whereBuilder.params).toEqual({ gender: "male" });
 
 			whereBuilder = new WhereBuilder();
 			whereBuilder
@@ -273,8 +301,9 @@ describe("WhereBuilder", () => {
 					value: "male",
 				});
 			expect(whereBuilder.cypher).toBe(
-				'(age > 25 AND age < 40) OR gender = "male"'
+				"(age > 25 AND age < 40) OR gender = $gender"
 			);
+			expect(whereBuilder.params).toEqual({ gender: "male" });
 		});
 
 		it("should throw an error if called before where()", () => {
@@ -299,8 +328,9 @@ describe("WhereBuilder", () => {
 				})
 				.xor(new WhereBuilder().where("age > 25").and("age < 40"));
 			expect(whereBuilder.cypher).toBe(
-				'gender = "male" XOR (age > 25 AND age < 40)'
+				"gender = $gender XOR (age > 25 AND age < 40)"
 			);
+			expect(whereBuilder.params).toEqual({ gender: "male" });
 
 			whereBuilder = new WhereBuilder();
 			whereBuilder
@@ -311,14 +341,29 @@ describe("WhereBuilder", () => {
 					value: "male",
 				});
 			expect(whereBuilder.cypher).toBe(
-				'(age > 25 AND age < 40) XOR gender = "male"'
+				"(age > 25 AND age < 40) XOR gender = $gender"
 			);
+			expect(whereBuilder.params).toEqual({ gender: "male" });
 		});
 
 		it("should throw an error if called before where()", () => {
 			expect(() => {
 				whereBuilder.xor("age = 25");
 			}).toThrow("XOR must be used after a `where` call.");
+		});
+	});
+
+	describe("Method: done", () => {
+		it("should add the `WHERE` clause at the beginning of the cypher.", () => {
+			whereBuilder
+				.where({
+					expression: "age > $age AND gender = $gender",
+					params: { age: 15, gender: "female" },
+				})
+				.done();
+
+			expect(whereBuilder.cypher).toBe("WHERE age > $age AND gender = $gender");
+			expect(whereBuilder.params).toEqual({ age: 15, gender: "female" });
 		});
 	});
 });

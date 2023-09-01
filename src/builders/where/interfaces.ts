@@ -1,3 +1,8 @@
+export type RawWhereParams = {
+	expression: string;
+	params?: Record<string, unknown>;
+};
+
 export type WhereParams = {
 	not?: boolean;
 	field: string;
