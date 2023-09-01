@@ -1,17 +1,15 @@
 import { CreateBuilder } from "../create.builder";
 import { MatchBuilder } from "../match.builder";
-import { MatchParams } from "./interfaces";
-import { type AddConnectionParams } from "../connection/interfaces";
-import { WhereBuilder, WhereParams } from "../where";
+import type { MatchParams } from "./interfaces";
+import type { AddConnectionParams } from "../connection";
+import { type RawWhereParams, type WhereParams, WhereBuilder } from "../where";
 
 export class CypherBuilder {
-	protected _cypher: string;
+	private _cypher: string = "";
+	private _params: Record<string, unknown> = {};
+
 	private _currentBuilder: MatchBuilder | CreateBuilder | WhereBuilder | null =
 		null;
-
-	constructor() {
-		this._cypher = "";
-	}
 
 	// ----------------------------------------------------------------
 	// Public Methods
@@ -29,10 +27,26 @@ export class CypherBuilder {
 	}
 
 	/**
-	 * match
+	 * params
+	 *
+	 * Getter for the params property.
+	 *
+	 * @returns {Record<string, unknown>}
 	 */
-	public match(params: MatchParams): this {
-		const { node, connections } = params;
+	public get params(): Record<string, unknown> {
+		return this._params;
+	}
+
+	/**
+	 * match
+	 *
+	 * Adds a MATCH statement to the cypher.
+	 *
+	 * @param {MatchParams} args
+	 * @returns {this}
+	 */
+	public match(args: MatchParams): this {
+		const { node, connections } = args;
 
 		this._currentBuilder = new MatchBuilder(node);
 		connections?.forEach((connection) => {
@@ -46,12 +60,17 @@ export class CypherBuilder {
 	 * where
 	 *
 	 * Adds a WHERE condition to the cypher.
+	 *
+	 * @param {string | RawWhereParams | WhereParams | WhereBuilder} args
+	 * @returns {this}
 	 */
-	public where(params: string | WhereParams): this {
+	public where(
+		args: string | RawWhereParams | WhereParams | WhereBuilder
+	): this {
 		this._clearCurrentBuilder();
 
 		this._currentBuilder = new WhereBuilder();
-		this._currentBuilder.where(params);
+		this._currentBuilder.where(args);
 
 		return this;
 	}
@@ -60,15 +79,18 @@ export class CypherBuilder {
 	 * and
 	 *
 	 * Adds an AND condition to the current WHERE clause.
+	 *
+	 * @param {string | RawWhereParams | WhereParams | WhereBuilder} args
+	 * @returns {this}
 	 */
-	public and(params: string | WhereParams): this {
+	public and(args: string | RawWhereParams | WhereParams | WhereBuilder): this {
 		if (!(this._currentBuilder instanceof WhereBuilder)) {
 			throw new Error(
 				"Cannot use AND without initializing a WHERE clause first."
 			);
 		}
 
-		this._currentBuilder.and(params);
+		this._currentBuilder.and(args);
 		return this;
 	}
 
@@ -76,29 +98,57 @@ export class CypherBuilder {
 	 * or
 	 *
 	 * Adds an OR condition to the current WHERE clause.
+	 *
+	 * @param {string | RawWhereParams | WhereParams | WhereBuilder} args
+	 * @returns {this}
 	 */
-	public or(params: string | WhereParams): this {
+	public or(args: string | RawWhereParams | WhereParams | WhereBuilder): this {
 		if (!(this._currentBuilder instanceof WhereBuilder)) {
 			throw new Error(
 				"Cannot use OR without initializing a WHERE clause first."
 			);
 		}
 
-		this._currentBuilder.or(params);
+		this._currentBuilder.or(args);
+		return this;
+	}
+
+	/**
+	 * xor
+	 *
+	 * Adds an OR condition to the current WHERE clause.
+	 *
+	 * @param {string | RawWhereParams | WhereParams | WhereBuilder} args
+	 * @returns {this}
+	 */
+	public xor(args: string | RawWhereParams | WhereParams | WhereBuilder): this {
+		if (!(this._currentBuilder instanceof WhereBuilder)) {
+			throw new Error(
+				"Cannot use OR without initializing a WHERE clause first."
+			);
+		}
+
+		this._currentBuilder.xor(args);
 		return this;
 	}
 
 	/**
 	 * addConnection
+	 *
+	 * Adds a connection to the current statement.
+	 * This requires the current builder to support the `addConnection` method.
+	 *
+	 * @param {AddConnectionParams} args
+	 * @returns {this}
 	 */
-	public addConnection(params: AddConnectionParams): this {
+	public addConnection(args: AddConnectionParams): this {
 		const builder = this._currentBuilder as any;
 
 		if (!builder?.addConnection) {
 			throw new Error("Current build step does not support `addConnection`.");
 		}
 
-		builder.addConnection(params);
+		builder.addConnection(args);
 		return this;
 	}
 
@@ -120,6 +170,12 @@ export class CypherBuilder {
 
 	/**
 	 * done
+	 *
+	 * Finishes producing the cypher for this builder,
+	 * by terminating the current builder and appending its
+	 * result.
+	 *
+	 * @returns {this}
 	 */
 	public done(): this {
 		this._clearCurrentBuilder();
@@ -132,11 +188,21 @@ export class CypherBuilder {
 
 	/**
 	 * _clearCurrentBuilder
+	 *
+	 * Clears current builder, by appending the latest produced
+	 * builder's result to the cypher builder. This means both appending the
+	 * produced expression, and the new params.
 	 */
 	private _clearCurrentBuilder(): void {
 		if (!this._currentBuilder) return;
 
+		(this._currentBuilder as any)?.done?.();
+
+		this._addToCypher("\n");
 		this._addToCypher(this._currentBuilder.cypher);
+
+		Object.assign(this._params, (this._currentBuilder as any)?.params ?? {});
+
 		this._currentBuilder = null;
 	}
 
@@ -145,9 +211,9 @@ export class CypherBuilder {
 	 *
 	 * Setter for the cypher property. Concats new values.
 	 *
-	 * @returns {string}
+	 * @param {string} value
 	 */
-	private _addToCypher(value: string) {
+	private _addToCypher(value: string): void {
 		if (this._cypher.length !== 0) {
 			this._cypher = `${this._cypher} ${value}`;
 			return;
