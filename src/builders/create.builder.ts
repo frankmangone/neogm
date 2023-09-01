@@ -2,22 +2,9 @@ import { ConnectionBuilder } from "./connection/connection.builder";
 import type { NodeParams } from "./connection/interfaces";
 
 export class CreateBuilder extends ConnectionBuilder {
-	protected _cypher: string;
-
 	constructor(node?: NodeParams) {
 		super(node);
 		this._cypher = `CREATE ${this._parseNodeCypher(node)}`;
-	}
-
-	/**
-	 * cypher
-	 *
-	 * Getter for the cypher property.
-	 *
-	 * @returns {string}
-	 */
-	public get cypher(): string {
-		return this._cypher;
 	}
 
 	/**

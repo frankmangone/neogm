@@ -148,4 +148,18 @@ export class ConnectionBuilder {
 
 		return `{${result.slice(0, -2)}}`;
 	}
+
+	/**
+	 * return
+	 *
+	 * Adds a return clause to the end of the cypher.
+	 * TODO: Maybe move this to an aggregator builder.
+	 *
+	 * @param {string[]} tags - The tags to be returned.
+	 * @returns {this}
+	 */
+	public return(tags: string[]): this {
+		this._cypher += ` RETURN ${tags.join(", ")};`;
+		return this;
+	}
 }
