@@ -8,7 +8,7 @@ import { ReturnBuilder, ReturnParams } from "../return";
 type Builder = MatchBuilder | CreateBuilder | WhereBuilder | ReturnBuilder;
 
 export class CypherBuilder {
-	private _cypher: string = "";
+	private _cypher: string[] = [];
 	private _params: Record<string, unknown> = {};
 
 	private _currentBuilder: Builder | null = null;
@@ -25,7 +25,7 @@ export class CypherBuilder {
 	 * @returns {string}
 	 */
 	public get cypher(): string {
-		return this._cypher;
+		return this._cypher.join("\n");
 	}
 
 	/**
@@ -48,7 +48,16 @@ export class CypherBuilder {
 	 * @returns {this}
 	 */
 	public match(args: MatchParams): this {
-		const { node, connections } = args;
+		let node, connections;
+
+		if ("node" in args) {
+			node = args.node;
+			connections = args.connections;
+		} else {
+			node = args;
+		}
+
+		this._clearCurrentBuilder();
 
 		this._currentBuilder = new MatchBuilder(node);
 		connections?.forEach((connection) => {
@@ -163,8 +172,12 @@ export class CypherBuilder {
 	 * @returns {this}
 	 */
 	public return(args: ReturnParams): this {
-		this._clearCurrentBuilder();
+		if (this._currentBuilder instanceof ReturnBuilder) {
+			this._currentBuilder.return(args);
+			return this;
+		}
 
+		this._clearCurrentBuilder();
 		this._currentBuilder = new ReturnBuilder();
 		this._currentBuilder.return(args);
 
@@ -200,6 +213,11 @@ export class CypherBuilder {
 	 */
 	public done(): this {
 		this._clearCurrentBuilder();
+
+		// Add semicolon at the end of the cypher
+		const lastStatement = this._cypher.pop();
+		this._cypher.push(`${lastStatement};`);
+
 		return this;
 	}
 
@@ -219,7 +237,6 @@ export class CypherBuilder {
 
 		(this._currentBuilder as any)?.done?.();
 
-		this._addToCypher("\n");
 		this._addToCypher(this._currentBuilder.cypher);
 
 		Object.assign(this._params, (this._currentBuilder as any)?.params ?? {});
@@ -235,10 +252,6 @@ export class CypherBuilder {
 	 * @param {string} value
 	 */
 	private _addToCypher(value: string): void {
-		if (this._cypher.length !== 0) {
-			this._cypher = `${this._cypher} ${value}`;
-			return;
-		}
-		this._cypher = value;
+		this._cypher.push(value);
 	}
 }

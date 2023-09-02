@@ -3,7 +3,9 @@ import {
 	type NodeParams,
 } from "../connection/interfaces";
 
-export interface MatchParams {
-	node: NodeParams;
-	connections?: AddConnectionParams[];
-}
+export type MatchParams =
+	| {
+			node: NodeParams;
+			connections?: AddConnectionParams[];
+	  }
+	| NodeParams;
