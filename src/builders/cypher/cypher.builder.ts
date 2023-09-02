@@ -3,13 +3,15 @@ import { MatchBuilder } from "../match.builder";
 import type { MatchParams } from "./interfaces";
 import type { AddConnectionParams } from "../connection";
 import { type RawWhereParams, type WhereParams, WhereBuilder } from "../where";
+import { ReturnBuilder, ReturnParams } from "../return";
+
+type Builder = MatchBuilder | CreateBuilder | WhereBuilder | ReturnBuilder;
 
 export class CypherBuilder {
 	private _cypher: string = "";
 	private _params: Record<string, unknown> = {};
 
-	private _currentBuilder: MatchBuilder | CreateBuilder | WhereBuilder | null =
-		null;
+	private _currentBuilder: Builder | null = null;
 
 	// ----------------------------------------------------------------
 	// Public Methods
@@ -157,14 +159,33 @@ export class CypherBuilder {
 	 *
 	 * Adds a return clause to the end of the cypher.
 	 *
-	 * @param {string[]} tags - The tags to be returned.
+	 * @param {ReturnParams} args
 	 * @returns {this}
 	 */
-	public return(tags: string[]): this {
+	public return(args: ReturnParams): this {
 		this._clearCurrentBuilder();
 
-		// Add return statement
-		this._addToCypher(`RETURN ${tags.join(", ")};`);
+		this._currentBuilder = new ReturnBuilder();
+		this._currentBuilder.return(args);
+
+		return this;
+	}
+
+	/**
+	 * distinct
+	 *
+	 * Adds a distinct clause to the return statement.
+	 *
+	 * @returns {this}
+	 */
+	public distinct(): this {
+		const builder = this._currentBuilder as any;
+
+		if (!builder?.distinct) {
+			throw new Error("Current build step does not support `distinct`.");
+		}
+
+		builder.distinct();
 		return this;
 	}
 
