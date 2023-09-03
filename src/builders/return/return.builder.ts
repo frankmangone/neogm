@@ -2,7 +2,7 @@ import { DISTINCT, AS, RETURN } from "./constants";
 import { ReturnParams } from "./interfaces";
 
 export class ReturnBuilder {
-	private _cypher: string;
+	protected _cypher: string;
 	private _distinct: boolean = false;
 	private _valuesWithAlias: Map<string, false | string> = new Map<
 		string,

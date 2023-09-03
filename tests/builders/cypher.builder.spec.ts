@@ -30,6 +30,7 @@ describe("CypherBuilder", () => {
 				})
 				.done();
 			expect(builder.cypher).toBe("MATCH (p:Person {name: $name, age: $age});");
+			expect(builder.params).toEqual({ name: "Alice", age: 30 });
 		});
 
 		it("should construct a MATCH statement with a connection", () => {
@@ -48,6 +49,29 @@ describe("CypherBuilder", () => {
 			expect(builder.cypher).toBe("MATCH (p:Person),\n(p)-[:LIKES]-(f:Food);");
 		});
 
+		it("should construct a MATCH statement with params on more than one item", () => {
+			builder
+				.match({
+					node: { label: "Person", tag: "p", fields: { age: 25 } },
+					connections: [
+						{
+							sourceNode: { tag: "p" },
+							edge: { label: "LIKES" },
+							targetNode: {
+								tag: "f",
+								label: "Food",
+								fields: { name: "lettuce" },
+							},
+						},
+					],
+				})
+				.done();
+			expect(builder.cypher).toBe(
+				"MATCH (p:Person {age: $age}),\n(p)-[:LIKES]-(f:Food {name: $name});"
+			);
+			expect(builder.params).toBe({ age: 25, name: "lettuce" });
+		});
+
 		it("should allow adding connections after the initial `match` call", () => {
 			builder
 				.match({
@@ -61,6 +85,26 @@ describe("CypherBuilder", () => {
 				.done();
 			expect(builder.cypher).toBe("MATCH (p:Person),\n(p)-[:LIKES]-(f:Food);");
 		});
+	});
+
+	describe("Method: addConnection", () => {
+		// TODO:
+	});
+
+	describe("Method: where", () => {
+		// TODO:
+	});
+
+	describe("Method: and", () => {
+		// TODO:
+	});
+
+	describe("Method: or", () => {
+		// TODO:
+	});
+
+	describe("Method: xor", () => {
+		// TODO:
 	});
 
 	describe("Method: return", () => {
@@ -88,5 +132,13 @@ describe("CypherBuilder", () => {
 				.done();
 			expect(builder.cypher).toBe("MATCH (p:Person)\nRETURN p AS person;");
 		});
+	});
+
+	describe("Method: distinct", () => {
+		// TODO:
+	});
+
+	describe("Method: done", () => {
+		// TODO:
 	});
 });

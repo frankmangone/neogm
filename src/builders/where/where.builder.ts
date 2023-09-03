@@ -16,7 +16,7 @@ import {
  * A utility for building WHERE conditions.
  */
 export class WhereBuilder {
-	private _cypher: string = "";
+	protected _cypher: string = "";
 	private _params: Record<string, unknown> = {};
 
 	// ----------------------------------------------------------------

@@ -1,17 +1,20 @@
 import { CreateBuilder } from "../create.builder";
 import { MatchBuilder } from "../match.builder";
-import type { MatchParams } from "./interfaces";
+import { CYPHER_BLOCKS, type MatchParams } from "./interfaces";
 import type { AddConnectionParams } from "../connection";
 import { type RawWhereParams, type WhereParams, WhereBuilder } from "../where";
-import { ReturnBuilder, ReturnParams } from "../return";
-
-type Builder = MatchBuilder | CreateBuilder | WhereBuilder | ReturnBuilder;
+import { type ReturnParams, ReturnBuilder } from "../return";
+import {
+	blockBuilderFactory,
+	type BlockBuilder,
+} from "./block-builder.factory";
+import { OrderByBuilder, OrderByParams } from "../order-by";
 
 export class CypherBuilder {
 	private _cypher: string[] = [];
 	private _params: Record<string, unknown> = {};
 
-	private _currentBuilder: Builder | null = null;
+	private _currentBuilder: BlockBuilder | null = null;
 
 	// ----------------------------------------------------------------
 	// Public Methods
@@ -79,10 +82,8 @@ export class CypherBuilder {
 		args: string | RawWhereParams | WhereParams | WhereBuilder
 	): this {
 		this._clearCurrentBuilder();
-
-		this._currentBuilder = new WhereBuilder();
+		this._currentBuilder = blockBuilderFactory(CYPHER_BLOCKS.WHERE);
 		this._currentBuilder.where(args);
-
 		return this;
 	}
 
@@ -141,6 +142,67 @@ export class CypherBuilder {
 
 		this._currentBuilder.xor(args);
 		return this;
+	}
+
+	/**
+	 * with
+	 */
+	public with() {
+		/* TODO: */
+	}
+
+	/**
+	 * remove
+	 */
+	public remove() {
+		/* TODO: */
+	}
+
+	/**
+	 * delete
+	 */
+	public delete() {
+		/* TODO: */
+	}
+
+	/**
+	 * forEach
+	 */
+	public forEach() {
+		/* TODO: */
+	}
+
+	/**
+	 * orderBy
+	 *
+	 * Adds an order by clause or expands existing one by adding a new condition.
+	 *
+	 * @param {OrderByParams} args
+	 * @returns {this}
+	 */
+	public orderBy(args: OrderByParams): this {
+		if (!(this._currentBuilder instanceof OrderByBuilder)) {
+			this._clearCurrentBuilder();
+			this._currentBuilder = blockBuilderFactory(CYPHER_BLOCKS.ORDER_BY);
+		}
+
+		this._currentBuilder.orderBy(args);
+
+		return this;
+	}
+
+	/**
+	 * paginate
+	 */
+	public paginate() {
+		/* TODO: (SKIP & LIMIT combined)*/
+	}
+
+	/**
+	 * call
+	 */
+	public call() {
+		/* TODO: (SKIP & LIMIT combined)*/
 	}
 
 	/**
