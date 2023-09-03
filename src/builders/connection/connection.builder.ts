@@ -124,7 +124,7 @@ export class ConnectionBuilder {
 	done(): this {
 		if (!this._isInitialized) {
 			throw new Error(
-				"ConnectionBuilder: Cannot terminate a non-initialized builder."
+				"ConnectionBuilder: Cannot terminate an uninitialized builder."
 			);
 		}
 

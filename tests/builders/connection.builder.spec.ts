@@ -152,10 +152,10 @@ describe("ConnectionBuilder", () => {
 			expect(builder.isTerminated).toBe(true);
 		});
 
-		it("should throw an error if terminating a non-initialized builder", () => {
+		it("should throw an error if terminating an uninitialized builder", () => {
 			expect(() => {
 				builder.done();
-			}).toThrowError("Cannot terminate a non-initialized builder.");
+			}).toThrowError("Cannot terminate an uninitialized builder.");
 		});
 
 		it("should throw an error if terminated builder is used again", () => {

@@ -1,4 +1,4 @@
-import { MatchBuilder } from "~/builders/match.builder";
+import { MatchBuilder } from "~/builders/match/match.builder";
 import { DataSource, type DataSourceOptions } from "~/data-source/data-source";
 import { Node } from "~/decorators/node";
 import { Property } from "~/decorators/property";

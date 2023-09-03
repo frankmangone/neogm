@@ -1,98 +1,122 @@
-// import { OPERATION_TYPES } from '../constants';
-// import { OperationBuilder } from './operation.builder';
-// import { Decimal } from 'decimal.js';
-// import { UnprocessableEntityException } from '@nestjs/common';
-import { DIRECTIONS } from "~/builders/connection/interfaces";
-import { MatchBuilder } from "~/builders/match.builder";
-
-// const MOCK_FOUND_ID = 1;
-
-// const mockConnection = {
-//   createQueryRunner: () => ({
-//     manager: {
-//       create: (_: unknown, data: any | any[]) => data,
-//       save: (_: unknown, data: any | any[]) => {
-//         if (Array.isArray(data)) {
-//           return data.map((d, id) => ({ ...d, id }));
-//         }
-
-//         return { ...data, id: 1 };
-//       },
-//       findOne: () => ({ id: MOCK_FOUND_ID }),
-//     },
-//     connect: () => undefined,
-//     startTransaction: () => undefined,
-//     commitTransaction: () => undefined,
-//     rollbackTransaction: () => undefined,
-//     release: () => undefined,
-//   }),
-// } as any;
-
-const tag = "node";
-const label = "Node";
-const fields = {
-	firstName: "Frank",
-	lastName: "TheTank",
-};
-const [firstName, lastName] = Object.keys(fields);
-const connectionLabel = "SOME_LABEL";
+import { MatchBuilder } from "~/builders/match";
+import { ConnectionBuilder, Direction } from "~/builders/connection";
 
 describe("MatchBuilder", () => {
-	let builder: MatchBuilder;
+	let matchBuilder: MatchBuilder;
 
 	beforeEach(() => {
-		builder = new MatchBuilder();
+		matchBuilder = new MatchBuilder();
 	});
 
 	describe("Method: constructor", () => {
-		it("Produces a correct cypher when only constructor is invoked", () => {
-			builder = new MatchBuilder();
-			expect(builder.cypher).toEqual("MATCH ()");
-		});
-
-		it("Produces a correct cypher when constructor is called with just a tag", () => {
-			builder = new MatchBuilder({ tag });
-			expect(builder.cypher).toEqual(`MATCH (${tag})`);
-		});
-
-		it("Produces a correct cypher when constructor is called with just a label", () => {
-			builder = new MatchBuilder({ label });
-			expect(builder.cypher).toEqual(`MATCH (:${label})`);
-		});
-
-		it("Produces a correct cypher when constructor is called with just fields", () => {
-			builder = new MatchBuilder({ fields });
-			expect(builder.cypher).toEqual(
-				`MATCH ({${firstName}: $${firstName}, ${lastName}: $${lastName}})`
-			);
-		});
-
-		it("Produces a correct cypher when constructor is called with tag and label", () => {
-			builder = new MatchBuilder({ tag, label });
-			expect(builder.cypher).toEqual(`MATCH (${tag}:${label})`);
-		});
-
-		it("Produces a correct cypher when constructor is called with tag, label, and fields", () => {
-			builder = new MatchBuilder({ tag, label, fields });
-			expect(builder.cypher).toEqual(
-				`MATCH (${tag}:${label} {${firstName}: $${firstName}, ${lastName}: $${lastName}})`
-			);
+		it("should instantiate without errors", () => {
+			expect(matchBuilder).toBeInstanceOf(MatchBuilder);
+			expect(matchBuilder.cypher).toBeUndefined();
 		});
 	});
 
-	describe("Method: addConnection", () => {
-		it("Produces a correct cypher when only an edge label is used.", () => {
-			builder = new MatchBuilder({ tag });
-			builder.addConnection({
-				sourceNode: {
-					tag,
-				},
-				edge: {
-					label: connectionLabel,
-					direction: DIRECTIONS.OUTGOING,
-				},
+	describe("Method: match", () => {
+		it("should build a MATCH statement using the ConnectionBuilder", () => {
+			const connection = new ConnectionBuilder()
+				.initialize({ labels: "Person", tag: "p", fields: { name: "John" } })
+				.connect({
+					node: { labels: "House", fields: { address: "123 Main St" } },
+					edge: { labels: "OWNS", direction: Direction.FORWARD },
+				})
+				.done();
+
+			matchBuilder.match(connection).done();
+
+			expect(matchBuilder.cypher).toBe(
+				"MATCH (p:Person {name: $name})-[:OWNS]->(:House {address: $address})"
+			);
+			expect(matchBuilder.params).toEqual({
+				name: "John",
+				address: "123 Main St",
 			});
-			expect(builder.cypher).toEqual("MATCH (node),\n(node)-[:SOME_LABEL]->()");
+		});
+
+		it("should throw error if attempting to use an unterminated ConnectionBuilder", () => {
+			const connection = new ConnectionBuilder().initialize().connect();
+
+			expect(() => {
+				matchBuilder.match(connection);
+			}).toThrowError(
+				"MatchBuilder: cannot use an unterminated `ConnectionBuilder`."
+			);
+		});
+
+		it("should allow chaining multiple connections in a single MATCH statement", () => {
+			const connection1 = new ConnectionBuilder()
+				.initialize({ labels: "Person", tag: "p1", fields: { name: "John" } })
+				.connect({
+					node: { labels: "House", fields: { address: "123 Main St" } },
+					edge: { labels: "OWNS", direction: Direction.FORWARD },
+				})
+				.done();
+
+			const connection2 = new ConnectionBuilder()
+				.initialize({
+					tag: "p1",
+				})
+				.connect({
+					node: { labels: "Car", fields: { model: "Tesla" } },
+					edge: { labels: "DRIVES", direction: Direction.FORWARD },
+				})
+				.done();
+
+			matchBuilder.match(connection1).match(connection2).done();
+
+			expect(matchBuilder.cypher).toBe(
+				"MATCH (p1:Person {name: $name})-[:OWNS]->(:House {address: $address}),\n(p1)-[:DRIVES]->(:Car {model: $model})"
+			);
+			expect(matchBuilder.params).toEqual({
+				name: "John",
+				address: "123 Main St",
+				model: "Tesla",
+			});
+		});
+
+		it("should throw error if attempting to use match method after done has been called", () => {
+			const connection = new ConnectionBuilder()
+				.initialize({ labels: "Person", tag: "p", fields: { name: "John" } })
+				.connect({
+					node: { labels: "House", fields: { address: "123 Main St" } },
+					edge: { labels: "OWNS", direction: Direction.FORWARD },
+				})
+				.done();
+
+			matchBuilder.match(connection).done();
+
+			expect(() => {
+				matchBuilder.match(connection);
+			}).toThrowError("MatchBuilder: Builder already terminated.");
+		});
+	});
+
+	describe("Method: done", () => {
+		it("should throw error if `done` is called before initializing with match", () => {
+			expect(() => {
+				matchBuilder.done();
+			}).toThrowError(
+				"MatchBuilder: Cannot terminate an uninitialized builder."
+			);
+		});
+
+		it("should throw error if `done` is called multiple times", () => {
+			const connection = new ConnectionBuilder()
+				.initialize({ labels: "Person", tag: "p", fields: { name: "John" } })
+				.connect({
+					node: { labels: "House", fields: { address: "123 Main St" } },
+					edge: { labels: "OWNS", direction: Direction.FORWARD },
+				})
+				.done();
+
+			matchBuilder.match(connection).done();
+
+			expect(() => {
+				matchBuilder.done();
+			}).toThrowError("MatchBuilder: Builder already terminated.");
 		});
 	});
 });

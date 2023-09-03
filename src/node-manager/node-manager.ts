@@ -1,5 +1,5 @@
 import { CreateBuilder } from "~/builders/create.builder";
-import { MatchBuilder } from "~/builders/match.builder";
+import { MatchBuilder } from "~/builders/match/match.builder";
 import { DataSource } from "~/data-source/data-source";
 import { Node, DeepPartial, ObjectLiteral } from "~/types";
 import type { FindManyOptions, SaveOptions } from "./interfaces";
