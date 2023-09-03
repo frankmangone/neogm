@@ -1,7 +1,7 @@
 import { CreateBuilder } from "../create.builder";
 import { MatchBuilder } from "../match.builder";
 import { CYPHER_BLOCKS, type MatchParams } from "./interfaces";
-import type { AddConnectionParams } from "../connection";
+import type { ConnectParams } from "../connection";
 import { type RawWhereParams, type WhereParams, WhereBuilder } from "../where";
 import { type ReturnParams, ReturnBuilder } from "../return";
 import {
@@ -202,7 +202,7 @@ export class CypherBuilder {
 	 * call
 	 */
 	public call() {
-		/* TODO: (SKIP & LIMIT combined)*/
+		/* TODO: */
 	}
 
 	/**
@@ -211,10 +211,10 @@ export class CypherBuilder {
 	 * Adds a connection to the current statement.
 	 * This requires the current builder to support the `addConnection` method.
 	 *
-	 * @param {AddConnectionParams} args
+	 * @param {ConnectParams} args
 	 * @returns {this}
 	 */
-	public addConnection(args: AddConnectionParams): this {
+	public addConnection(args: ConnectParams): this {
 		const builder = this._currentBuilder as any;
 
 		if (!builder?.addConnection) {

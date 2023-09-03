@@ -13,7 +13,7 @@ describe("OrderByBuilder", () => {
 		});
 	});
 
-	describe("Method: constructor", () => {
+	describe("Method: orderBy", () => {
 		it("should allow ordering by a property without specifying ASC or DESC", () => {
 			builder.orderBy({ property: "name" }).done();
 			expect(builder.cypher).toBe("ORDER BY name");

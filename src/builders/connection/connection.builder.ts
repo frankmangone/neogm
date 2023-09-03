@@ -1,25 +1,32 @@
-import type { Query } from "../../types";
 import {
 	DIRECTIONS,
-	type AddConnectionParams,
-	type Direction,
-	type EdgeParams,
+	type DirectionType,
 	type NodeParams,
+	type EdgeParams,
+	type ConnectParams,
+	type Fields,
 } from "./interfaces";
 
+/**
+ * ConnectionBuilder
+ *
+ * Allows for the creation of expressions that represent connections between nodes,
+ * such as `(p:Person)-[:OWNS]->(h:House)-[:HAS_SERVICE]->(s: Service {name: "electricity"})`.
+ * The API allows initialization (through `initialize`) with a node, and then provides a `connect`
+ * method that allows the chaining of edges and nodes.
+ */
 export class ConnectionBuilder {
-	protected _cypher: string;
-
-	constructor(baseNode?: NodeParams) {
-		this._cypher = `${this._parseNodeCypher(baseNode)}`;
-	}
+	private _cypher: string;
+	private _params: Record<string, unknown> = {};
+	private _isInitialized: boolean = false;
+	private _isTerminated: boolean = false;
 
 	/**
 	 * cypher
 	 *
 	 * Getter for the `_cypher` property.
-	 * This is not meant to be a full cypher; instead, it's just the node specification
-	 * for more useful expressions such as MATCH and CREATE.
+	 * This is not meant to be a full cypher; instead, it's just a node connection
+	 * expression used for more useful statements such as MATCH and CREATE.
 	 *
 	 * @returns {string}
 	 */
@@ -28,24 +35,104 @@ export class ConnectionBuilder {
 	}
 
 	/**
-	 * addConnection
+	 * params
+	 *
+	 * Getter for the inner `_params` property.
+	 *
+	 * @returns {string}
+	 */
+	public get params(): Record<string, unknown> {
+		return this._params;
+	}
+
+	/**
+	 * isTerminated
+	 *
+	 * Getter for the inner `_isTerminated` property.
+	 *
+	 * @returns {boolean}
+	 */
+	public get isTerminated(): boolean {
+		return this._isTerminated;
+	}
+
+	/**
+	 * initialize
+	 *
+	 * Adds the starting node for a chain of connections.
+	 * This method may only be called once for each builder.
+	 *
+	 * @param {AddConnectionParams | undefined} params
+	 * @returns {this}
+	 */
+	public initialize(args?: NodeParams): this {
+		if (this._isInitialized) {
+			throw new Error(
+				"ConnectionBuilder: Connection chain has already been initialized in this builder instance. `initialize` may only be called once."
+			);
+		}
+
+		const { expression, params } = this._parseNodeCypher(args);
+
+		Object.assign(this._params, params);
+
+		this._cypher = expression;
+		this._isInitialized = true;
+		return this;
+	}
+
+	/**
+	 * connect
 	 *
 	 * Adds a connection to the match expression.
 	 *
-	 * @param {AddConnectionParams} params
+	 * @param {ConnectParams | undefined} params
 	 * @returns {this}
 	 */
-	public addConnection(params: AddConnectionParams): this {
-		const { sourceNode, edge, targetNode } = params;
+	public connect(params?: ConnectParams): this {
+		if (!this._isInitialized) {
+			throw new Error(
+				"ConnectionBuilder: `connect` may only be called after initialization."
+			);
+		}
 
-		this._cypher += ",\n";
+		if (this._isTerminated) {
+			throw new Error("ConnectionBuilder: Builder already terminated.");
+		}
 
-		const sourceNodeString = this._parseNodeCypher(sourceNode);
-		const targetNodeString = this._parseNodeCypher(targetNode);
-		const edgeString = this._parseEdgeCypher(edge);
+		const { edge, node } = params ?? {};
 
-		this._cypher += `${sourceNodeString}${edgeString}${targetNodeString}`;
+		const { expression: nodeExpression, params: nodeParams } =
+			this._parseNodeCypher(node);
+		const { expression: edgeExpression, params: edgeParams } =
+			this._parseEdgeCypher(edge);
 
+		Object.assign(this._params, edgeParams);
+		Object.assign(this._params, nodeParams);
+		this._cypher += `${edgeExpression}${nodeExpression}`;
+
+		return this;
+	}
+
+	/**
+	 * done
+	 *
+	 * Terminates the connection expression.
+	 *
+	 * @returns {this}
+	 */
+	done(): this {
+		if (!this._isInitialized) {
+			throw new Error(
+				"ConnectionBuilder: Cannot terminate a non-initialized builder."
+			);
+		}
+
+		if (this._isTerminated) {
+			throw new Error("ConnectionBuilder: Builder already terminated.");
+		}
+
+		this._isTerminated = true;
 		return this;
 	}
 
@@ -53,113 +140,142 @@ export class ConnectionBuilder {
 	 * _parseNodeCypher
 	 *
 	 * @param {NodeParams | undefined} edge
-	 * @returns {string}
+	 * @returns { expression: string; params: Record<string, unknown>; }
 	 */
-	protected _parseNodeCypher(node?: NodeParams): string {
-		if (!node) {
-			return "()";
-		}
+	protected _parseNodeCypher(node?: NodeParams): {
+		expression: string;
+		params: Record<string, unknown>;
+	} {
+		if (!node) return { expression: "()", params: {} };
 
-		const { tag = "", label = "", fields = {} } = node;
-		let result = "";
+		const { tag = "", labels = "", fields = {} } = node;
+		let expression = "";
 
-		if (label) {
-			result += `(${tag}:${label}`;
+		if (labels) {
+			expression += `(${tag}:${this._parseLabels(labels)}`;
 		} else {
-			result += `(${tag}`;
+			expression += `(${tag}`;
 		}
 
-		if (result !== "(" && Object.keys(fields).length !== 0) {
-			result += " ";
+		if (expression !== "(" && Object.keys(fields).length !== 0) {
+			expression += " ";
 		}
 
-		result += `${this._buildQueryFields(fields)})`;
+		const { expression: fieldsExpression, params } =
+			this._parseQueryFields(fields);
+		expression += `${fieldsExpression})`;
 
-		return result;
+		return { expression, params };
 	}
 
 	/**
 	 * _parseEdgeCypher
 	 *
 	 * @param {EdgeParams | undefined} edge
-	 * @returns {string}
+	 * @returns { expression: string; params: Record<string, unknown>; }
 	 */
-	protected _parseEdgeCypher(edge?: EdgeParams): string {
-		if (!edge) {
-			return "--";
+	private _parseEdgeCypher(edge?: EdgeParams): {
+		expression: string;
+		params: Record<string, unknown>;
+	} {
+		if (!edge) return { expression: "--", params: {} };
+
+		const { tag = "", labels, fields = {}, direction } = edge;
+		let expression = "";
+
+		if (!labels && !tag && Object.keys(fields).length === 0) {
+			return {
+				expression: this._parseDirectedEdge(expression, direction),
+				params: {},
+			};
 		}
 
-		const { tag = "", label = "", fields = {}, direction } = edge;
-		let result = "";
-
-		if (!label && !tag && !fields) {
-			return this._parseDirectedEdge(result, direction);
-		}
-
-		if (label) {
-			result += `[${tag}:${label}`;
+		if (labels) {
+			expression += `[${tag}:${this._parseLabels(labels)}`;
 		} else {
-			result += `[${tag}`;
+			expression += `[${tag}`;
 		}
 
-		if (result !== "[" && Object.keys(fields).length !== 0) {
-			result += " ";
+		if (expression !== "[" && Object.keys(fields).length !== 0) {
+			expression += " ";
 		}
 
-		result += `${this._buildQueryFields(fields)}]`;
-		return this._parseDirectedEdge(result, direction);
+		const { expression: fieldsExpression, params } =
+			this._parseQueryFields(fields);
+		expression += `${fieldsExpression}]`;
+
+		return {
+			expression: this._parseDirectedEdge(expression, direction),
+			params,
+		};
 	}
 
 	/**
 	 * _parseDirectedEdge
 	 *
 	 * @param {string} edgeContent
-	 * @param {Direction | undefined} direction
+	 * @param {DirectionType | undefined} direction
 	 * @returns {string}
 	 */
-	protected _parseDirectedEdge(
+	private _parseDirectedEdge(
 		edgeContent: string,
-		direction?: Direction
+		direction?: DirectionType
 	): string {
-		if (direction === DIRECTIONS.OUTGOING) return `-${edgeContent}->`;
-		if (direction === DIRECTIONS.INCOMING) return `<-${edgeContent}-`;
+		if (direction === DIRECTIONS.FORWARD) return `-${edgeContent}->`;
+		if (direction === DIRECTIONS.BACKWARD) return `<-${edgeContent}-`;
 		return `-${edgeContent}-`;
 	}
 
 	/**
-	 * _buildQueryFields
+	 * _parseLabels
 	 *
-	 * Builds query fields for a given payload.
+	 * Parses labels by joining them with `|` if multiple are present.
 	 *
-	 * @param {Query<T>} query
+	 * @param {string | string[]} labels
 	 * @returns {string}
 	 */
-	_buildQueryFields<T>(query: Query<T>): string {
-		let result = "";
-		const fields = Object.keys(query);
-
-		if (fields.length === 0) {
-			return "";
-		}
-
-		Object.keys(query).forEach((key) => {
-			result += `${key}: $${key}, `;
-		});
-
-		return `{${result.slice(0, -2)}}`;
+	private _parseLabels(labels: string | string[]): string {
+		if (typeof labels === "string") return labels;
+		return labels.join("|");
 	}
 
 	/**
-	 * return
+	 * _parseQueryFields
 	 *
-	 * Adds a return clause to the end of the cypher.
-	 * TODO: Maybe move this to an aggregator builder.
+	 * Builds query fields for a given payload.
 	 *
-	 * @param {string[]} tags - The tags to be returned.
-	 * @returns {this}
+	 * @param {Fields} fields
+	 * @returns { expression: string; params: Record<string, unknown> }
 	 */
-	public return(tags: string[]): this {
-		this._cypher += ` RETURN ${tags.join(", ")};`;
-		return this;
+	private _parseQueryFields(fields: Fields): {
+		expression: string;
+		params: Record<string, unknown>;
+	} {
+		if (Object.keys(fields).length === 0) {
+			return { expression: "", params: {} };
+		}
+
+		let expression = "";
+		const params = {};
+
+		Object.entries(fields).forEach((entry) => {
+			const [key, value] = entry;
+
+			if (
+				typeof value === "string" ||
+				typeof value === "number" ||
+				typeof value === "boolean"
+			) {
+				expression += `${key}: $${key}, `;
+				params[key] = value;
+				return;
+			}
+
+			const { value: innerValue, alias = key } = value;
+			expression += `${key}: $${alias}, `;
+			params[alias] = innerValue;
+		});
+
+		return { expression: `{${expression.slice(0, -2)}}`, params };
 	}
 }
