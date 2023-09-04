@@ -1,5 +1,5 @@
 import { ConnectionBuilder } from "../connection";
-import { CreateBuilder } from "../create.builder";
+import { CreateBuilder } from "../create/create.builder";
 import { MatchBuilder } from "../match";
 import { OrderByBuilder } from "../order-by";
 import { ReturnBuilder } from "../return";

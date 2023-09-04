@@ -1,4 +1,4 @@
-import { CreateBuilder } from "../create.builder";
+import { CreateBuilder } from "../create/create.builder";
 import { MatchBuilder } from "../match/match.builder";
 import { CYPHER_BLOCKS, type MatchParams } from "./interfaces";
 import type { ConnectParams } from "../connection";

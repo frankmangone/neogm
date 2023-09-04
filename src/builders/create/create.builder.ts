@@ -1,7 +1,7 @@
 import { ConnectionBuilder } from "../connection/connection.builder";
-import { MATCH } from "./constants";
+import { CREATE } from "./constants";
 
-export class MatchBuilder {
+export class CreateBuilder {
 	private _cypher: string;
 	private _params: Record<string, unknown> = {};
 	private _isInitialized: boolean = false;
@@ -41,22 +41,28 @@ export class MatchBuilder {
 	}
 
 	/**
-	 * match
+	 * create
 	 *
-	 * Adds a match statement
+	 * Adds a create statement.
 	 *
 	 * @param {ConnectionBuilder} builder - The connection builder used to generate the matched expression.
 	 * @returns {this}
 	 */
-	public match(builder: ConnectionBuilder): this {
+	public create(builder: ConnectionBuilder): this {
 		if (!builder.isTerminated) {
 			throw new Error(
-				"MatchBuilder: cannot use an unterminated `ConnectionBuilder`."
+				"CreateBuilder: cannot use an unterminated `ConnectionBuilder`."
 			);
 		}
 
 		if (this._isTerminated) {
-			throw new Error("MatchBuilder: Builder already terminated.");
+			throw new Error("CreateBuilder: Builder already terminated.");
+		}
+
+		if (this._isInitialized) {
+			throw new Error(
+				"CreateBuilder: `create` may only be called once. Use `done` to terminate the builder."
+			);
 		}
 
 		Object.assign(this._params, builder.params);
@@ -67,7 +73,6 @@ export class MatchBuilder {
 			return this;
 		}
 
-		this._cypher += `,\n${builder.cypher}`;
 		return this;
 	}
 
@@ -80,17 +85,17 @@ export class MatchBuilder {
 	 */
 	public done(): this {
 		if (this._isTerminated) {
-			throw new Error("MatchBuilder: Builder already terminated.");
+			throw new Error("CreateBuilder: Builder already terminated.");
 		}
 
 		if (!this._isInitialized) {
 			throw new Error(
-				"MatchBuilder: Cannot terminate an uninitialized builder."
+				"CreateBuilder: Cannot terminate an uninitialized builder."
 			);
 		}
 
 		this._isTerminated = true;
-		this._cypher = `${MATCH} ${this._cypher}`;
+		this._cypher = `${CREATE} ${this._cypher}`;
 		return this;
 	}
 }
