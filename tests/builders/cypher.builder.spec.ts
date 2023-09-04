@@ -1,4 +1,4 @@
-import { CypherBuilder } from "~/builders/cypher/cypher.builder";
+import { CypherBuilder, Direction, Operator, Order } from "~/builders/cypher";
 
 describe("CypherBuilder", () => {
 	let builder: CypherBuilder;
@@ -7,136 +7,135 @@ describe("CypherBuilder", () => {
 		builder = new CypherBuilder();
 	});
 
-	describe("Method: constructor", () => {
-		it("should initiate an empty Cypher statement", () => {
-			expect(builder.cypher).toBe("");
+	describe("Feature: Individual builders", () => {
+		describe("Method: match", () => {
+			it("should construct a simple MATCH statement", () => {
+				builder.match({ labels: "Person", tag: "p" }).done();
+				expect(builder.cypher).toBe("MATCH (p:Person);");
+			});
+
+			it("should construct a MATCH statement with fields and aliases", () => {
+				builder
+					.match({
+						labels: "Person",
+						tag: "p",
+						fields: { name: "Alice", age: { value: 30, alias: "aliasedAge" } },
+					})
+					.done();
+				expect(builder.cypher).toBe(
+					"MATCH (p:Person {name: $name, age: $aliasedAge});"
+				);
+				expect(builder.params).toEqual({ name: "Alice", aliasedAge: 30 });
+			});
+
+			it("should support calling `connect` after `match`", () => {
+				builder
+					.match({
+						labels: "Person",
+						tag: "p",
+					})
+					.connect()
+					.done();
+				expect(builder.cypher).toBe("MATCH (p:Person)--();");
+				expect(builder.params).toEqual({});
+			});
+		});
+
+		describe("Method: where", () => {
+			it("should construct a simple WHERE statement", () => {
+				builder
+					.where({ field: "p", operator: Operator.EQUALS, value: "yes" })
+					.done();
+				expect(builder.cypher).toBe("WHERE p = $p;");
+				expect(builder.params).toEqual({ p: "yes" });
+			});
+
+			it("should allow calling `and` after `where`", () => {
+				builder
+					.where({ field: "p", operator: Operator.IS_NULL })
+					.and({ field: "q", operator: Operator.IS_NULL })
+					.done();
+				expect(builder.cypher).toBe("WHERE p IS NULL AND q IS NULL;");
+				expect(builder.params).toEqual({});
+			});
+
+			it("should allow calling `or` after `where`", () => {
+				builder
+					.where({ field: "p", operator: Operator.IS_NULL })
+					.or({ field: "q", operator: Operator.IS_NULL })
+					.done();
+				expect(builder.cypher).toBe("WHERE p IS NULL OR q IS NULL;");
+				expect(builder.params).toEqual({});
+			});
+
+			it("should allow calling `xor` after `where`", () => {
+				builder
+					.where({ field: "p", operator: Operator.IS_NULL })
+					.xor({ field: "q", operator: Operator.IS_NULL })
+					.done();
+				expect(builder.cypher).toBe("WHERE p IS NULL XOR q IS NULL;");
+				expect(builder.params).toEqual({});
+			});
+		});
+
+		describe("Method: orderBy", () => {
+			it("should construct a simple ORDER BY statement", () => {
+				builder.orderBy({ property: "p", order: Order.ASC }).done();
+				expect(builder.cypher).toBe("ORDER BY p ASC;");
+			});
+		});
+
+		describe("Method: return", () => {
+			it("should add a RETURN statement", () => {
+				builder.return("p").done();
+				expect(builder.cypher).toBe("RETURN p;");
+			});
+
+			it("should add a RETURN statement with alias", () => {
+				builder.return({ value: "p", alias: "pepe" }).done();
+				expect(builder.cypher).toBe("RETURN p AS pepe;");
+			});
+
+			it("should handle multiple values in the RETURN statement", () => {
+				builder.return("p").return("q").done();
+				expect(builder.cypher).toBe("RETURN p, q;");
+			});
 		});
 	});
 
-	describe("Method: match", () => {
-		it("should construct a simple MATCH statement", () => {
-			builder.match({ labels: "Person", tag: "p" }).done();
-			expect(builder.cypher).toBe("MATCH (p:Person);");
-		});
-
-		it("should construct a MATCH statement with fields", () => {
+	describe("Feature: Combined builders", () => {
+		it("should produce an expression with MATCH, WHERE, and RETURN", () => {
 			builder
-				.match({
-					labels: "Person",
-					tag: "p",
-					fields: { name: "Alice", age: 30 },
+				.match({ tag: "p", labels: "Person" })
+				.connect({
+					node: { tag: "h", labels: "House" },
+					edge: { labels: "OWNS", direction: Direction.FORWARD },
 				})
-				.done();
-			expect(builder.cypher).toBe("MATCH (p:Person {name: $name, age: $age});");
-			expect(builder.params).toEqual({ name: "Alice", age: 30 });
-		});
-
-		it("should construct a MATCH statement with a connection", () => {
-			builder
-				.match({
-					node: { label: "Person", tag: "p" },
-					connections: [
-						{
-							sourceNode: { tag: "p" },
-							edge: { label: "LIKES" },
-							targetNode: { tag: "f", label: "Food" },
-						},
-					],
+				.where({
+					field: "h.electricity",
+					operator: Operator.EQUALS,
+					value: true,
+					alias: "electricity",
 				})
-				.done();
-			expect(builder.cypher).toBe("MATCH (p:Person),\n(p)-[:LIKES]-(f:Food);");
-		});
-
-		it("should construct a MATCH statement with params on more than one item", () => {
-			builder
-				.match({
-					node: { label: "Person", tag: "p", fields: { age: 25 } },
-					connections: [
-						{
-							sourceNode: { tag: "p" },
-							edge: { label: "LIKES" },
-							targetNode: {
-								tag: "f",
-								label: "Food",
-								fields: { name: "lettuce" },
-							},
-						},
-					],
-				})
+				.return("p")
 				.done();
 			expect(builder.cypher).toBe(
-				"MATCH (p:Person {age: $age}),\n(p)-[:LIKES]-(f:Food {name: $name});"
+				"MATCH (p:Person)-[:OWNS]->(h:House)\nWHERE h.electricity = $electricity\nRETURN p;"
 			);
-			expect(builder.params).toBe({ age: 25, name: "lettuce" });
-		});
-
-		it("should allow adding connections after the initial `match` call", () => {
-			builder
-				.match({
-					node: { label: "Person", tag: "p" },
-				})
-				.addConnection({
-					sourceNode: { tag: "p" },
-					edge: { label: "LIKES" },
-					targetNode: { tag: "f", label: "Food" },
-				})
-				.done();
-			expect(builder.cypher).toBe("MATCH (p:Person),\n(p)-[:LIKES]-(f:Food);");
+			expect(builder.params).toEqual({ electricity: true });
 		});
 	});
 
-	describe("Method: addConnection", () => {
-		// TODO:
-	});
-
-	describe("Method: where", () => {
-		// TODO:
-	});
-
-	describe("Method: and", () => {
-		// TODO:
-	});
-
-	describe("Method: or", () => {
-		// TODO:
-	});
-
-	describe("Method: xor", () => {
-		// TODO:
-	});
-
-	describe("Method: return", () => {
-		it("should add a RETURN statement", () => {
-			builder
-				.match({ node: { label: "Person", tag: "p" } })
-				.return("p")
-				.done();
-			expect(builder.cypher).toBe("MATCH (p:Person)\nRETURN p;");
-		});
-
-		it("should add multiple values to RETURN statement", () => {
-			builder
-				.match({ node: { label: "Person", tag: "p" } })
-				.return("p")
-				.return("q")
-				.done();
-			expect(builder.cypher).toBe("MATCH (p:Person)\nRETURN p, q;");
-		});
-
-		it("should accept aliased values", () => {
-			builder
-				.match({ node: { label: "Person", tag: "p" } })
-				.return({ value: "p", alias: "person" })
-				.done();
-			expect(builder.cypher).toBe("MATCH (p:Person)\nRETURN p AS person;");
-		});
-	});
-
-	describe("Method: distinct", () => {
-		// TODO:
-	});
-
-	describe("Method: done", () => {
-		// TODO:
+	describe("Feature: Error handling", () => {
+		// it("should throw error when trying to connect without a MATCH", () => {
+		// const connectArgs: ConnectParams = {
+		// 	/*... your params here ...*/
+		// };
+		// expect(() => {
+		// 	builder.connect(connectArgs);
+		// }).toThrow(/*...expected error message...*/);
+		// });
+		// Add similar error handling tests for other methods.
+		// ...
 	});
 });

@@ -1,7 +1,6 @@
-import { CreateBuilder } from "../create/create.builder";
 import { MatchBuilder } from "../match/match.builder";
-import { CYPHER_BLOCKS, type MatchParams } from "./interfaces";
-import type { ConnectParams } from "../connection";
+import { CYPHER_BLOCKS } from "./interfaces";
+import type { ConnectParams, NodeParams } from "../connection";
 import { type RawWhereParams, type WhereParams, WhereBuilder } from "../where";
 import { type ReturnParams, ReturnBuilder } from "../return";
 import {
@@ -47,32 +46,35 @@ export class CypherBuilder {
 	 *
 	 * Adds a MATCH statement to the cypher.
 	 *
-	 * @param {MatchParams} args
+	 * @param {NodeParams} args
 	 * @returns {this}
 	 */
-	public match(args: MatchParams): this {
-		let node, connections;
-
-		if ("node" in args) {
-			node = args.node;
-			connections = args.connections;
-		} else {
-			node = args;
+	public match(args: NodeParams): this {
+		if (!(this._currentBuilder instanceof MatchBuilder)) {
+			this._clearCurrentBuilder();
+			this._currentBuilder = blockBuilderFactory(CYPHER_BLOCKS.MATCH);
 		}
 
-		this._clearCurrentBuilder();
+		this._currentBuilder.match(args);
+		return this;
+	}
 
-		this._currentBuilder = blockBuilderFactory(CYPHER_BLOCKS.MATCH);
-		const connectionBuilder = blockBuilderFactory(CYPHER_BLOCKS.CONNECTION);
+	/**
+	 * connect
+	 *
+	 * Adds a connection to the current builder, if the method is supported by it (i.e. MatchBuilder).
+	 *
+	 * @param {ConnectParams} args
+	 * @returns {this}
+	 */
+	public connect(args?: ConnectParams): this {
+		if (!("connect" in this._currentBuilder)) {
+			throw new Error(
+				`CypherBuilder: Cannot use connect with the current builder instance (${this._currentBuilder?.constructor.name}).`
+			);
+		}
 
-		connectionBuilder.initialize(node);
-		connections?.forEach((connection) => {
-			connectionBuilder.connect(connection);
-		});
-		connectionBuilder.done();
-
-		this._currentBuilder.match(connectionBuilder);
-
+		this._currentBuilder.connect(args);
 		return this;
 	}
 
@@ -193,7 +195,6 @@ export class CypherBuilder {
 		}
 
 		this._currentBuilder.orderBy(args);
-
 		return this;
 	}
 

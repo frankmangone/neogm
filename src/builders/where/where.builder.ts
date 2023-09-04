@@ -3,7 +3,7 @@ import {
 	LogicalOperator,
 	nullCheckOperators,
 	numberOnlyOperators,
-	Operator,
+	OperatorType,
 	OPERATORS,
 	stringOnlyOperators,
 	type WhereParams,
@@ -186,18 +186,18 @@ export class WhereBuilder {
 			return { expression: args.expression, params: args.params };
 		}
 
-		const { not = false, field, operator, value: rawValue } = args;
+		const { not = false, field, operator, value: rawValue, alias } = args;
 
 		this._validateOperator(operator, rawValue);
 		const value = this._parseExpressionValue(rawValue);
 
 		const expression = value
-			? `${field} ${operator} $${field}`
+			? `${field} ${operator} $${alias ?? field}`
 			: `${field} ${operator}`;
 
 		return {
 			expression: not ? `NOT ${expression}` : expression,
-			params: { [field]: value },
+			params: { [alias ?? field]: value },
 		};
 	}
 
@@ -207,10 +207,10 @@ export class WhereBuilder {
 	 * Validates the operator and value combination, since some operators
 	 * can be used with a specific type of value.
 	 *
-	 * @param {Operator} operator
+	 * @param {OperatorType} operator
 	 * @param {unknown} value
 	 */
-	private _validateOperator(operator: Operator, value: unknown): void {
+	private _validateOperator(operator: OperatorType, value: unknown): void {
 		if (nullCheckOperators.includes(operator)) {
 			if (value !== undefined) {
 				throw new Error(`Operator "${operator}" does not require a value.`);
