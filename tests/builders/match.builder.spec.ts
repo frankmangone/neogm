@@ -1,5 +1,5 @@
 import { MatchBuilder } from "~/builders/match";
-import { ConnectionBuilder, Direction } from "~/builders/connection";
+import { Direction } from "~/builders/connection";
 
 describe("MatchBuilder", () => {
 	let matchBuilder: MatchBuilder;
@@ -11,21 +11,19 @@ describe("MatchBuilder", () => {
 	describe("Method: constructor", () => {
 		it("should instantiate without errors", () => {
 			expect(matchBuilder).toBeInstanceOf(MatchBuilder);
-			expect(matchBuilder.cypher).toBeUndefined();
+			expect(matchBuilder.cypher).toBe("");
 		});
 	});
 
-	describe("Method: match", () => {
-		it("should build a MATCH statement using the ConnectionBuilder", () => {
-			const connection = new ConnectionBuilder()
-				.initialize({ labels: "Person", tag: "p", fields: { name: "John" } })
+	describe("Methods: match & connect", () => {
+		it("should build a MATCH statement", () => {
+			matchBuilder
+				.match({ labels: "Person", tag: "p", fields: { name: "John" } })
 				.connect({
 					node: { labels: "House", fields: { address: "123 Main St" } },
 					edge: { labels: "OWNS", direction: Direction.FORWARD },
 				})
 				.done();
-
-			matchBuilder.match(connection).done();
 
 			expect(matchBuilder.cypher).toBe(
 				"MATCH (p:Person {name: $name})-[:OWNS]->(:House {address: $address})"
@@ -36,27 +34,14 @@ describe("MatchBuilder", () => {
 			});
 		});
 
-		it("should throw error if attempting to use an unterminated ConnectionBuilder", () => {
-			const connection = new ConnectionBuilder().initialize().connect();
-
-			expect(() => {
-				matchBuilder.match(connection);
-			}).toThrowError(
-				"MatchBuilder: cannot use an unterminated `ConnectionBuilder`."
-			);
-		});
-
 		it("should allow chaining multiple connections in a single MATCH statement", () => {
-			const connection1 = new ConnectionBuilder()
-				.initialize({ labels: "Person", tag: "p1", fields: { name: "John" } })
+			matchBuilder
+				.match({ labels: "Person", tag: "p1", fields: { name: "John" } })
 				.connect({
 					node: { labels: "House", fields: { address: "123 Main St" } },
 					edge: { labels: "OWNS", direction: Direction.FORWARD },
 				})
-				.done();
-
-			const connection2 = new ConnectionBuilder()
-				.initialize({
+				.match({
 					tag: "p1",
 				})
 				.connect({
@@ -64,8 +49,6 @@ describe("MatchBuilder", () => {
 					edge: { labels: "DRIVES", direction: Direction.FORWARD },
 				})
 				.done();
-
-			matchBuilder.match(connection1).match(connection2).done();
 
 			expect(matchBuilder.cypher).toBe(
 				"MATCH (p1:Person {name: $name})-[:OWNS]->(:House {address: $address}),\n(p1)-[:DRIVES]->(:Car {model: $model})"
@@ -75,22 +58,6 @@ describe("MatchBuilder", () => {
 				address: "123 Main St",
 				model: "Tesla",
 			});
-		});
-
-		it("should throw error if attempting to use match method after done has been called", () => {
-			const connection = new ConnectionBuilder()
-				.initialize({ labels: "Person", tag: "p", fields: { name: "John" } })
-				.connect({
-					node: { labels: "House", fields: { address: "123 Main St" } },
-					edge: { labels: "OWNS", direction: Direction.FORWARD },
-				})
-				.done();
-
-			matchBuilder.match(connection).done();
-
-			expect(() => {
-				matchBuilder.match(connection);
-			}).toThrowError("MatchBuilder: Builder already terminated.");
 		});
 	});
 
@@ -104,15 +71,13 @@ describe("MatchBuilder", () => {
 		});
 
 		it("should throw error if `done` is called multiple times", () => {
-			const connection = new ConnectionBuilder()
-				.initialize({ labels: "Person", tag: "p", fields: { name: "John" } })
+			matchBuilder
+				.match({ labels: "Person", tag: "p", fields: { name: "John" } })
 				.connect({
 					node: { labels: "House", fields: { address: "123 Main St" } },
 					edge: { labels: "OWNS", direction: Direction.FORWARD },
 				})
 				.done();
-
-			matchBuilder.match(connection).done();
 
 			expect(() => {
 				matchBuilder.done();

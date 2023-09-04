@@ -62,10 +62,16 @@ export class CypherBuilder {
 
 		this._clearCurrentBuilder();
 
-		this._currentBuilder = new MatchBuilder(node);
+		this._currentBuilder = blockBuilderFactory(CYPHER_BLOCKS.MATCH);
+		const connectionBuilder = blockBuilderFactory(CYPHER_BLOCKS.CONNECTION);
+
+		connectionBuilder.initialize(node);
 		connections?.forEach((connection) => {
-			(this._currentBuilder as MatchBuilder).addConnection(connection);
+			connectionBuilder.connect(connection);
 		});
+		connectionBuilder.done();
+
+		this._currentBuilder.match(connectionBuilder);
 
 		return this;
 	}
@@ -195,7 +201,7 @@ export class CypherBuilder {
 	 * paginate
 	 */
 	public paginate() {
-		/* TODO: (SKIP & LIMIT combined)*/
+		/* TODO: (SKIP & LIMIT combined) */
 	}
 
 	/**
@@ -203,26 +209,6 @@ export class CypherBuilder {
 	 */
 	public call() {
 		/* TODO: */
-	}
-
-	/**
-	 * addConnection
-	 *
-	 * Adds a connection to the current statement.
-	 * This requires the current builder to support the `addConnection` method.
-	 *
-	 * @param {ConnectParams} args
-	 * @returns {this}
-	 */
-	public addConnection(args: ConnectParams): this {
-		const builder = this._currentBuilder as any;
-
-		if (!builder?.addConnection) {
-			throw new Error("Current build step does not support `addConnection`.");
-		}
-
-		builder.addConnection(args);
-		return this;
 	}
 
 	/**
@@ -240,7 +226,7 @@ export class CypherBuilder {
 		}
 
 		this._clearCurrentBuilder();
-		this._currentBuilder = new ReturnBuilder();
+		this._currentBuilder = blockBuilderFactory(CYPHER_BLOCKS.RETURN);
 		this._currentBuilder.return(args);
 
 		return this;

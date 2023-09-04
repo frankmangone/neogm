@@ -1,8 +1,13 @@
-import { ConnectionBuilder } from "../connection/connection.builder";
+import {
+	ConnectionBuilder,
+	type NodeParams,
+	type ConnectParams,
+} from "../connection";
 import { MATCH } from "./constants";
 
 export class MatchBuilder {
-	private _cypher: string;
+	private _cypher: string = "";
+	private _connectionBuilder: ConnectionBuilder = new ConnectionBuilder();
 	private _params: Record<string, unknown> = {};
 	private _isInitialized: boolean = false;
 	private _isTerminated: boolean = false;
@@ -43,31 +48,35 @@ export class MatchBuilder {
 	/**
 	 * match
 	 *
-	 * Adds a match statement
+	 * Starts adding a new connection to the MATCH statement. If a connection builder was already
+	 * initialized, it terminates it, collects the result, and resets it.
 	 *
-	 * @param {ConnectionBuilder} builder - The connection builder used to generate the matched expression.
+	 * @param {NodeParams} node - The node data for initialization of the `ConnectionBuilder`.
 	 * @returns {this}
 	 */
-	public match(builder: ConnectionBuilder): this {
-		if (!builder.isTerminated) {
-			throw new Error(
-				"MatchBuilder: cannot use an unterminated `ConnectionBuilder`."
-			);
+	public match(node: NodeParams): this {
+		if (this._isInitialized) {
+			this._collect();
+			this._cypher = `${this._cypher},\n`;
+			this._connectionBuilder.reset();
 		}
 
-		if (this._isTerminated) {
-			throw new Error("MatchBuilder: Builder already terminated.");
-		}
+		this._connectionBuilder.initialize(node);
+		if (!this._isInitialized) this._isInitialized = true;
 
-		Object.assign(this._params, builder.params);
+		return this;
+	}
 
-		if (!this._isInitialized) {
-			this._isInitialized = true;
-			this._cypher = builder.cypher;
-			return this;
-		}
-
-		this._cypher += `,\n${builder.cypher}`;
+	/**
+	 * connect
+	 *
+	 * Adds a connection in the current `ConnectionBuilder`.
+	 *
+	 * @param {ConnectParams} connection - The connection data.
+	 * @returns {this}
+	 */
+	public connect(connection: ConnectParams): this {
+		this._connectionBuilder.connect(connection);
 		return this;
 	}
 
@@ -90,7 +99,22 @@ export class MatchBuilder {
 		}
 
 		this._isTerminated = true;
+		this._collect();
+
 		this._cypher = `${MATCH} ${this._cypher}`;
 		return this;
+	}
+
+	/**
+	 * _collect
+	 *
+	 * Collects the current `ConnectionBuilder`'s result.
+	 *
+	 * @returns {void}
+	 */
+	private _collect(): void {
+		this._connectionBuilder.done();
+		this._cypher = `${this._cypher}${this._connectionBuilder.cypher}`;
+		Object.assign(this._params, this._connectionBuilder.params);
 	}
 }

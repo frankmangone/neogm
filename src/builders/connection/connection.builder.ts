@@ -121,7 +121,7 @@ export class ConnectionBuilder {
 	 *
 	 * @returns {this}
 	 */
-	done(): this {
+	public done(): this {
 		if (!this._isInitialized) {
 			throw new Error(
 				"ConnectionBuilder: Cannot terminate an uninitialized builder."
@@ -133,6 +133,21 @@ export class ConnectionBuilder {
 		}
 
 		this._isTerminated = true;
+		return this;
+	}
+
+	/**
+	 * reset
+	 *
+	 * Resets the builder to its initial state.
+	 *
+	 * @returns {this}
+	 */
+	public reset(): this {
+		this._cypher = undefined;
+		this._params = {};
+		this._isInitialized = false;
+		this._isTerminated = false;
 		return this;
 	}
 

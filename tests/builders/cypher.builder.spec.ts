@@ -15,18 +15,16 @@ describe("CypherBuilder", () => {
 
 	describe("Method: match", () => {
 		it("should construct a simple MATCH statement", () => {
-			builder.match({ node: { label: "Person", tag: "p" } }).done();
+			builder.match({ labels: "Person", tag: "p" }).done();
 			expect(builder.cypher).toBe("MATCH (p:Person);");
 		});
 
 		it("should construct a MATCH statement with fields", () => {
 			builder
 				.match({
-					node: {
-						label: "Person",
-						tag: "p",
-						fields: { name: "Alice", age: 30 },
-					},
+					labels: "Person",
+					tag: "p",
+					fields: { name: "Alice", age: 30 },
 				})
 				.done();
 			expect(builder.cypher).toBe("MATCH (p:Person {name: $name, age: $age});");
