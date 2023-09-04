@@ -49,7 +49,7 @@ export class CypherBuilder {
 	 * @param {NodeParams} args
 	 * @returns {this}
 	 */
-	public match(args: NodeParams): this {
+	public match(args?: NodeParams): this {
 		if (!(this._currentBuilder instanceof MatchBuilder)) {
 			this._clearCurrentBuilder();
 			this._currentBuilder = blockBuilderFactory(CYPHER_BLOCKS.MATCH);
@@ -68,13 +68,15 @@ export class CypherBuilder {
 	 * @returns {this}
 	 */
 	public connect(args?: ConnectParams): this {
-		if (!("connect" in this._currentBuilder)) {
+		const builder = this._currentBuilder as any;
+
+		if (!builder?.connect) {
 			throw new Error(
 				`CypherBuilder: Cannot use connect with the current builder instance (${this._currentBuilder?.constructor.name}).`
 			);
 		}
 
-		this._currentBuilder.connect(args);
+		builder.connect(args);
 		return this;
 	}
 
@@ -106,7 +108,7 @@ export class CypherBuilder {
 	public and(args: string | RawWhereParams | WhereParams | WhereBuilder): this {
 		if (!(this._currentBuilder instanceof WhereBuilder)) {
 			throw new Error(
-				"Cannot use AND without initializing a WHERE clause first."
+				"CypherBuilder: Cannot use AND without initializing a WHERE clause first."
 			);
 		}
 
@@ -125,7 +127,7 @@ export class CypherBuilder {
 	public or(args: string | RawWhereParams | WhereParams | WhereBuilder): this {
 		if (!(this._currentBuilder instanceof WhereBuilder)) {
 			throw new Error(
-				"Cannot use OR without initializing a WHERE clause first."
+				"CypherBuilder: Cannot use OR without initializing a WHERE clause first."
 			);
 		}
 
@@ -144,7 +146,7 @@ export class CypherBuilder {
 	public xor(args: string | RawWhereParams | WhereParams | WhereBuilder): this {
 		if (!(this._currentBuilder instanceof WhereBuilder)) {
 			throw new Error(
-				"Cannot use OR without initializing a WHERE clause first."
+				"CypherBuilder: Cannot use XOR without initializing a WHERE clause first."
 			);
 		}
 
@@ -241,13 +243,13 @@ export class CypherBuilder {
 	 * @returns {this}
 	 */
 	public distinct(): this {
-		const builder = this._currentBuilder as any;
-
-		if (!builder?.distinct) {
-			throw new Error("Current build step does not support `distinct`.");
+		if (!(this._currentBuilder instanceof ReturnBuilder)) {
+			throw new Error(
+				"CypherBuilder: Cannot use DISTINCT without initializing a RETURN clause first."
+			);
 		}
 
-		builder.distinct();
+		this._currentBuilder.distinct();
 		return this;
 	}
 

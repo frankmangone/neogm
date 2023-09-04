@@ -49,7 +49,7 @@ export class ReturnBuilder {
 	public distinct(): this {
 		if (this._distinct) {
 			throw new Error(
-				"DISTINCT may only be called once for each RETURN statement."
+				"ReturnBuilder: `distinct` may only be called once for each RETURN statement."
 			);
 		}
 
@@ -66,7 +66,9 @@ export class ReturnBuilder {
 	 */
 	public done(): this {
 		if (this._valuesWithAlias.size === 0) {
-			throw new Error("No values specified for the RETURN statement.");
+			throw new Error(
+				"ReturnBuilder: No values specified for the RETURN statement."
+			);
 		}
 
 		this._cypher = `${RETURN} `;

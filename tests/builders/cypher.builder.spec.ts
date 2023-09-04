@@ -101,6 +101,21 @@ describe("CypherBuilder", () => {
 				expect(builder.cypher).toBe("RETURN p, q;");
 			});
 		});
+
+		describe("Method: distinct", () => {
+			it("should add DISTINCT clause when calling `distinct`", () => {
+				builder.return("p").return("q").distinct().done();
+				expect(builder.cypher).toBe("RETURN DISTINCT p, q;");
+			});
+
+			it("should throw when calling `distinct` more than once", () => {
+				expect(() => {
+					builder.return("p").distinct().distinct();
+				}).toThrow(
+					"`distinct` may only be called once for each RETURN statement"
+				);
+			});
+		});
 	});
 
 	describe("Feature: Combined builders", () => {
@@ -117,25 +132,72 @@ describe("CypherBuilder", () => {
 					value: true,
 					alias: "electricity",
 				})
+				.and({
+					expression: "h.backyard = $backyard",
+					params: { backyard: true },
+				})
 				.return("p")
 				.done();
 			expect(builder.cypher).toBe(
-				"MATCH (p:Person)-[:OWNS]->(h:House)\nWHERE h.electricity = $electricity\nRETURN p;"
+				"MATCH (p:Person)-[:OWNS]->(h:House)\nWHERE h.electricity = $electricity AND h.backyard = $backyard\nRETURN p;"
 			);
-			expect(builder.params).toEqual({ electricity: true });
+			expect(builder.params).toEqual({ electricity: true, backyard: true });
+		});
+
+		it("should allow multiple calls to `match` and `connect`", () => {
+			builder
+				.match({ tag: "p", labels: "Person" })
+				.match({ tag: "p" })
+				.connect({
+					node: { labels: "House" },
+					edge: { labels: "OWNS", direction: Direction.FORWARD },
+				})
+				.match({ tag: "p" })
+				.connect({
+					node: { labels: "Dog" },
+					edge: { labels: "OWNS", direction: Direction.FORWARD },
+				})
+				.return("p")
+				.done();
+
+			expect(builder.cypher).toBe(
+				"MATCH (p:Person),\n(p)-[:OWNS]->(:House),\n(p)-[:OWNS]->(:Dog)\nRETURN p;"
+			);
+			expect(builder.params).toEqual({});
 		});
 	});
 
 	describe("Feature: Error handling", () => {
-		// it("should throw error when trying to connect without a MATCH", () => {
-		// const connectArgs: ConnectParams = {
-		// 	/*... your params here ...*/
-		// };
-		// expect(() => {
-		// 	builder.connect(connectArgs);
-		// }).toThrow(/*...expected error message...*/);
-		// });
-		// Add similar error handling tests for other methods.
-		// ...
+		it("should throw error when trying to call `connect` when the current builder doesn't support the method", () => {
+			expect(() => {
+				builder.connect();
+			}).toThrow("Cannot use connect with the current builder instance");
+		});
+
+		it("should throw error when trying to call `and` when the current builder isn't a `WhereBuilder`", () => {
+			expect(() => {
+				builder.match().and("param = 1");
+			}).toThrow("Cannot use AND without initializing a WHERE clause first");
+		});
+
+		it("should throw error when trying to call `or` when the current builder isn't a `WhereBuilder`", () => {
+			expect(() => {
+				builder.match().or("param = 1");
+			}).toThrow("Cannot use OR without initializing a WHERE clause first");
+		});
+
+		it("should throw error when trying to call `xor` when the current builder isn't a `WhereBuilder`", () => {
+			expect(() => {
+				builder.match().xor("param = 1");
+			}).toThrow("Cannot use XOR without initializing a WHERE clause first");
+		});
+
+		it("should throw when calling `distinct` when the current builder isn't a `ReturnBuilder`", () => {
+			expect(() => {
+				builder.match().distinct();
+			}).toThrow(
+				"Cannot use DISTINCT without initializing a RETURN clause first"
+			);
+		});
 	});
 });

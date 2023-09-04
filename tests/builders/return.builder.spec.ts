@@ -32,7 +32,7 @@ describe("ReturnBuilder", () => {
 
 		it("throws an error when called multiple times", () => {
 			expect(() => builder.distinct().distinct()).toThrow(
-				"DISTINCT may only be called once for each RETURN statement."
+				"`distinct` may only be called once for each RETURN statement."
 			);
 		});
 	});
